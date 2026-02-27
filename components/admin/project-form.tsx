@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { motion } from 'framer-motion';
-import { Upload, Trash2, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Upload, Trash2, Plus, FileIcon, X } from 'lucide-react';
 import { Project, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
@@ -33,6 +33,14 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+  const [draggingField, setDraggingField] = useState<string | null>(null);
+
+  const fileInputRefs = {
+    thumbnail: useRef<HTMLInputElement>(null),
+    images: useRef<HTMLInputElement>(null),
+    video: useRef<HTMLInputElement>(null),
+    pdf: useRef<HTMLInputElement>(null),
+  };
 
   const { control, register, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
@@ -64,13 +72,36 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
     fetchCategories();
   }, []);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
-    if (e.target.files?.[0]) {
-      setSelectedFiles({
-        ...selectedFiles,
-        [fileType]: e.target.files[0],
-      });
+  const handleFileSelect = (files: FileList | null, fileType: string) => {
+    if (files?.[0]) {
+      setSelectedFiles(prev => ({
+        ...prev,
+        [fileType]: files[0],
+      }));
+      toast.success(`${files[0].name} selected`);
     }
+  };
+
+  const removeFile = (fileType: string) => {
+    setSelectedFiles(prev => ({
+      ...prev,
+      [fileType]: null,
+    }));
+  };
+
+  const onDragOver = (e: React.DragEvent, field: string) => {
+    e.preventDefault();
+    setDraggingField(field);
+  };
+
+  const onDragLeave = () => {
+    setDraggingField(null);
+  };
+
+  const onDrop = (e: React.DragEvent, field: string) => {
+    e.preventDefault();
+    setDraggingField(null);
+    handleFileSelect(e.dataTransfer.files, field);
   };
 
   const onSubmit = async (data: any) => {
@@ -85,12 +116,10 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
       formData.append('label', data.label);
       formData.append('isHidden', String(data.isHidden));
       
-      // Handle links as array of strings
       data.links.forEach((link: string) => {
         if (link) formData.append('links', link);
       });
 
-      // Add files if selected
       Object.entries(selectedFiles).forEach(([key, file]) => {
         if (file) {
           formData.append(key, file);
@@ -99,16 +128,12 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
 
       if (isEditing) {
         await apiClient.put(`projects/${project?._id}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Project updated successfully');
       } else {
         await apiClient.post('projects', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
         toast.success('Project created successfully');
       }
@@ -205,22 +230,31 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
             <CardDescription>Upload thumbnail, images, video, PDF, or links</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 { id: 'thumbnail', label: 'Thumbnail (Single)' },
                 { id: 'images', label: 'Images (Multiple)' },
                 { id: 'video', label: 'Video' },
                 { id: 'pdf', label: 'PDF' }
               ].map((type) => (
-                <div key={type.id}>
+                <div key={type.id} className="space-y-2">
                   <Label>{type.label}</Label>
-                  <div className="mt-2 border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors">
-                    <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
+                  <div
+                    onDragOver={(e) => onDragOver(e, type.id)}
+                    onDragLeave={onDragLeave}
+                    onDrop={(e) => onDrop(e, type.id)}
+                    onClick={() => (fileInputRefs as any)[type.id].current?.click()}
+                    className={`relative mt-2 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 group
+                      ${draggingField === type.id 
+                        ? 'border-primary bg-primary/5 scale-[1.02]' 
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                  >
                     <input
                       type="file"
-                      onChange={(e) => handleFileSelect(e, type.id)}
+                      ref={(fileInputRefs as any)[type.id]}
+                      onChange={(e) => handleFileSelect(e.target.files, type.id)}
                       className="hidden"
-                      id={`file-${type.id}`}
                       accept={
                         type.id === 'video' ? 'video/*' :
                         type.id === 'pdf' ? 'application/pdf' :
@@ -228,38 +262,89 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                       }
                       multiple={type.id === 'images'}
                     />
-                    <label htmlFor={`file-${type.id}`} className="text-sm text-muted-foreground cursor-pointer">
-                      {selectedFiles[type.id] ? selectedFiles[type.id]!.name : `Select ${type.id}`}
-                    </label>
+                    
+                    <AnimatePresence mode="wait">
+                      {selectedFiles[type.id] ? (
+                        <motion.div
+                          key="selected"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className="flex flex-col items-center"
+                        >
+                          <div className="p-3 rounded-full bg-primary/10 text-primary mb-3">
+                            <FileIcon className="w-8 h-8" />
+                          </div>
+                          <p className="text-sm font-medium text-foreground truncate max-w-full px-4">
+                            {selectedFiles[type.id]!.name}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFile(type.id);
+                            }}
+                            className="mt-4 flex items-center text-xs text-destructive hover:text-destructive/80 font-medium"
+                          >
+                            <X className="w-3 h-3 mr-1" />
+                            Remove file
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="empty"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex flex-col items-center"
+                        >
+                          <div className="p-3 rounded-full bg-muted text-muted-foreground mb-3 group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                            <Upload className="w-8 h-8" />
+                          </div>
+                          <p className="text-sm font-medium text-foreground">
+                            Click or drag to upload {type.id}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {type.id === 'images' ? 'SVG, PNG, JPG (up to 10 files)' : 
+                             type.id === 'video' ? 'MP4, WebM (up to 100MB)' :
+                             type.id === 'pdf' ? 'PDF Documents' : 'SVG, PNG, JPG'}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Links */}
-            <div className="space-y-2">
-              <Label>Project Links</Label>
-              {linkFields.map((field, index) => (
-                <div key={field.id} className="flex gap-2">
-                  <Input
-                    placeholder="https://example.com"
-                    {...register(`links.${index}` as const)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => removeLink(index)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <Label className="text-lg">Project Links</Label>
+              <div className="space-y-3">
+                {linkFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2">
+                    <Input
+                      placeholder="https://example.com"
+                      {...register(`links.${index}` as const)}
+                      className="bg-muted/50"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeLink(index)}
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => appendLink('')}
+                className="mt-2"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Link
@@ -269,17 +354,17 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
         </Card>
 
         {/* Actions */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 pt-4">
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-primary hover:bg-primary/90"
+            className="px-8 bg-primary hover:bg-primary/90"
           >
             {isLoading ? 'Saving...' : isEditing ? 'Update Project' : 'Create Project'}
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             onClick={() => router.back()}
           >
             Cancel

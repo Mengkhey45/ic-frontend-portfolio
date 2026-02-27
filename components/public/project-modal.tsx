@@ -92,22 +92,21 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
             {videoMedia.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-muted-foreground">Videos</h3>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {videoMedia.map((video, idx) => (
-                    <div key={idx} className="rounded-lg bg-muted p-4 flex items-center justify-between">
+                    <a
+                      key={idx}
+                      href={video.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-4 bg-muted rounded-lg hover:bg-muted/80 transition-colors group"
+                    >
                       <div className="flex items-center gap-3">
                         <Play className="w-5 h-5 text-primary" />
                         <span className="text-sm font-medium">{video.title || `Video ${idx + 1}`}</span>
                       </div>
-                      <a
-                        href={video.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    </div>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    </a>
                   ))}
                 </div>
               </div>
