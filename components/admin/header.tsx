@@ -11,6 +11,7 @@ import {
 import { LogOut, Settings, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { ThemeToggle } from './theme-toggle';
 
 export default function AdminHeader() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export default function AdminHeader() {
       </div>
 
       <div className="flex items-center space-x-4">
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
