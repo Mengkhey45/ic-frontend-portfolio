@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { FolderOpen, Tag, Share2, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -16,14 +18,28 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch dashboard stats from your backend
-    // For now, we'll use dummy data
-    setStats({
-      totalProjects: 0,
-      totalCategories: 0,
-      activeShares: 0,
-    });
-    setIsLoading(false);
+    const fetchStats = async () => {
+      try {
+        const [projectsRes, categoriesRes, sharesRes] = await Promise.all([
+          apiClient.get<{ projects: any[] }>('/projects'),
+          apiClient.get<{ categories: any[] }>('/categories'),
+          apiClient.get<{ shareLinks: any[] }>('/share-links'),
+        ]);
+
+        setStats({
+          totalProjects: projectsRes.data.projects?.length || 0,
+          totalCategories: categoriesRes.data.categories?.length || 0,
+          activeShares: sharesRes.data.shareLinks?.length || 0,
+        });
+      } catch (err) {
+        console.error('Failed to fetch dashboard stats:', err);
+        // toast.error('Failed to load dashboard stats');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
   }, []);
 
   const quickActions = [

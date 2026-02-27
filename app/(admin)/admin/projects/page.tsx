@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
 import { Project } from '@/lib/types';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
@@ -32,13 +34,22 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchProjects = async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.get<{ projects: Project[] }>('/projects');
+      setProjects(response.data.projects || []);
+      setFilteredProjects(response.data.projects || []);
+    } catch (error: any) {
+      console.error('Failed to fetch projects:', error);
+      toast.error('Failed to load projects');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Fetch projects from backend
-    // For now, using dummy data
-    const dummyProjects: Project[] = [];
-    setProjects(dummyProjects);
-    setFilteredProjects(dummyProjects);
-    setIsLoading(false);
+    fetchProjects();
   }, []);
 
   useEffect(() => {
@@ -52,23 +63,27 @@ export default function ProjectsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      // Call backend to delete project
-      // setProjects(projects.filter(p => p._id !== id));
-    } catch (error) {
+      await apiClient.delete(`/projects/${id}`);
+      setProjects(projects.filter((p) => p._id !== id));
+      toast.success('Project deleted successfully');
+    } catch (error: any) {
       console.error('Failed to delete project:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete project');
     }
   };
 
   const toggleVisibility = async (id: string, isHidden: boolean) => {
     try {
-      // Call backend to toggle visibility
+      await apiClient.patch(`/projects/${id}/visibility`, { isHidden: !isHidden });
       setProjects(
         projects.map((p) =>
           p._id === id ? { ...p, isHidden: !isHidden } : p
         )
       );
-    } catch (error) {
+      toast.success(`Project is now ${!isHidden ? 'hidden' : 'visible'}`);
+    } catch (error: any) {
       console.error('Failed to toggle visibility:', error);
+      toast.error('Failed to update visibility');
     }
   };
 
@@ -155,7 +170,7 @@ export default function ProjectsPage() {
                           <div className="truncate">{project.title}</div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {project.category}
+                          {typeof project.category === 'object' ? (project.category as any).name : project.category}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
                           <span

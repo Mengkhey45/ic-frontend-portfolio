@@ -19,6 +19,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { motion } from 'framer-motion';
 import { Upload, Trash2, Plus } from 'lucide-react';
 import { Project, Category } from '@/lib/types';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 interface ProjectFormProps {
   project?: Project;
@@ -36,7 +38,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
     defaultValues: {
       title: project?.title || '',
       description: project?.description || '',
-      category: project?.category || '',
+      category: typeof project?.category === 'object' ? (project?.category as any)._id : (project?.category || ''),
       label: project?.label || '',
       isHidden: project?.isHidden || false,
       links: project?.links || [],
@@ -49,8 +51,17 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
   });
 
   useEffect(() => {
-    // Fetch categories
-    // setCategories(fetchedCategories);
+    const fetchCategories = async () => {
+      try {
+        const response = await apiClient.get<{ categories: Category[] }>('/categories');
+        setCategories(response.data.categories || []);
+      } catch (err: any) {
+        console.error('Failed to fetch categories:', err);
+        toast.error('Failed to load categories');
+      }
+    };
+
+    fetchCategories();
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
@@ -72,8 +83,12 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
       formData.append('description', data.description);
       formData.append('category', data.category);
       formData.append('label', data.label);
-      formData.append('isHidden', data.isHidden);
-      formData.append('links', JSON.stringify(data.links));
+      formData.append('isHidden', String(data.isHidden));
+      
+      // Handle links as array of strings
+      data.links.forEach((link: string) => {
+        if (link) formData.append('links', link);
+      });
 
       // Add files if selected
       Object.entries(selectedFiles).forEach(([key, file]) => {
@@ -82,27 +97,26 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
         }
       });
 
-      const url = isEditing
-        ? `/api/projects/${project?._id}`
-        : '/api/projects';
-
-      const method = isEditing ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save project');
+      if (isEditing) {
+        await apiClient.put(`/projects/${project?._id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        toast.success('Project updated successfully');
+      } else {
+        await apiClient.post('/projects', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        toast.success('Project created successfully');
       }
 
       router.push('/admin/projects');
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.response?.data?.message || err.message || 'An error occurred');
+      toast.error('Failed to save project');
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +169,10 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="category">Category *</Label>
-                <Select {...register('category', { required: 'Category is required' })}>
+                <Select 
+                  defaultValue={typeof project?.category === 'object' ? (project?.category as any)._id : (project?.category || '')}
+                  onValueChange={(value) => setValue('category', value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -189,24 +206,30 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {['thumbnail', 'images', 'video', 'pdf'].map((type) => (
-                <div key={type}>
-                  <Label>{type.charAt(0).toUpperCase() + type.slice(1)}</Label>
+              {[
+                { id: 'thumbnail', label: 'Thumbnail (Single)' },
+                { id: 'images', label: 'Images (Multiple)' },
+                { id: 'video', label: 'Video' },
+                { id: 'pdf', label: 'PDF' }
+              ].map((type) => (
+                <div key={type.id}>
+                  <Label>{type.label}</Label>
                   <div className="mt-2 border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors">
                     <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
                     <input
                       type="file"
-                      onChange={(e) => handleFileSelect(e, type)}
+                      onChange={(e) => handleFileSelect(e, type.id)}
                       className="hidden"
-                      id={`file-${type}`}
+                      id={`file-${type.id}`}
                       accept={
-                        type === 'video' ? 'video/*' :
-                        type === 'pdf' ? 'application/pdf' :
+                        type.id === 'video' ? 'video/*' :
+                        type.id === 'pdf' ? 'application/pdf' :
                         'image/*'
                       }
+                      multiple={type.id === 'images'}
                     />
-                    <label htmlFor={`file-${type}`} className="text-sm text-muted-foreground cursor-pointer">
-                      {selectedFiles[type] ? selectedFiles[type]!.name : `Select ${type}`}
+                    <label htmlFor={`file-${type.id}`} className="text-sm text-muted-foreground cursor-pointer">
+                      {selectedFiles[type.id] ? selectedFiles[type.id]!.name : `Select ${type.id}`}
                     </label>
                   </div>
                 </div>

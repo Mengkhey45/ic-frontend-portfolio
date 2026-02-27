@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Trash2, Edit2 } from 'lucide-react';
 import { Category } from '@/lib/types';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,9 +29,18 @@ export default function CategoriesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const fetchCategories = async () => {
+    try {
+      const response = await apiClient.get<{ categories: Category[] }>('/categories');
+      setCategories(response.data.categories || []);
+    } catch (err: any) {
+      console.error('Failed to fetch categories:', err);
+      toast.error('Failed to load categories');
+    }
+  };
+
   useEffect(() => {
-    // Fetch categories from backend
-    // setCategories(fetchedCategories);
+    fetchCategories();
   }, []);
 
   const handleAddCategory = async (e: React.FormEvent) => {
@@ -43,22 +54,13 @@ export default function CategoriesPage() {
     setError('');
 
     try {
-      const response = await fetch('/api/categories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(newCategory),
-      });
-
-      if (!response.ok) throw new Error('Failed to add category');
-
-      const data = await response.json();
-      setCategories([...categories, data]);
+      const response = await apiClient.post<Category>('/categories', newCategory);
+      setCategories([...categories, response.data]);
       setNewCategory({ name: '', description: '' });
+      toast.success('Category added successfully');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
+      toast.error('Failed to add category');
     } finally {
       setIsLoading(false);
     }
@@ -69,24 +71,16 @@ export default function CategoriesPage() {
     setError('');
 
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(editingCategory),
-      });
-
-      if (!response.ok) throw new Error('Failed to update category');
-
+      await apiClient.put(`/categories/${id}`, editingCategory);
       setCategories(
         categories.map((c) => (c._id === id ? { ...c, ...editingCategory } : c))
       );
       setEditingId(null);
       setEditingCategory({ name: '', description: '' });
+      toast.success('Category updated successfully');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
+      toast.error('Failed to update category');
     } finally {
       setIsLoading(false);
     }
@@ -94,18 +88,12 @@ export default function CategoriesPage() {
 
   const handleDeleteCategory = async (id: string) => {
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to delete category');
-
+      await apiClient.delete(`/categories/${id}`);
       setCategories(categories.filter((c) => c._id !== id));
+      toast.success('Category deleted successfully');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
+      toast.error('Failed to delete category');
     }
   };
 

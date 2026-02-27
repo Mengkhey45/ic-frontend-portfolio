@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -15,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Copy, Trash2, Plus, Calendar, Link as LinkIcon } from 'lucide-react';
 import { ShareLink } from '@/lib/types';
+import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -32,9 +32,17 @@ export default function SharingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const fetchShareLinks = async () => {
+    try {
+      const response = await apiClient.get<{ shareLinks: ShareLink[] }>('/share-links');
+      setShareLinks(response.data.shareLinks || []);
+    } catch (err: any) {
+      console.error('Failed to fetch share links:', err);
+    }
+  };
+
   useEffect(() => {
-    // Fetch share links from backend
-    // setShareLinks(fetchedLinks);
+    fetchShareLinks();
   }, []);
 
   const generatePortfolioLink = async () => {
@@ -45,25 +53,15 @@ export default function SharingPage() {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + parseInt(expirationDays));
 
-      const response = await fetch('/api/share-links', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          isPortfolioLink: true,
-          expiresAt,
-        }),
+      const response = await apiClient.post<ShareLink>('/share-links', {
+        isPortfolioLink: true,
+        expiresAt,
       });
 
-      if (!response.ok) throw new Error('Failed to generate link');
-
-      const data = await response.json();
-      setShareLinks([...shareLinks, data]);
+      setShareLinks([...shareLinks, response.data]);
       toast.success('Portfolio link generated successfully');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
       toast.error('Failed to generate link');
     } finally {
       setIsLoading(false);
@@ -72,19 +70,11 @@ export default function SharingPage() {
 
   const deleteShareLink = async (id: string) => {
     try {
-      const response = await fetch(`/api/share-links/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to delete link');
-
+      await apiClient.delete(`/share-links/${id}`);
       setShareLinks(shareLinks.filter((link) => link._id !== id));
       toast.success('Link deleted successfully');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
       toast.error('Failed to delete link');
     }
   };

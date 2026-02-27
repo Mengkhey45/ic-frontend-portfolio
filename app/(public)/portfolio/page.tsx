@@ -8,6 +8,7 @@ import ProjectCard from '@/components/public/project-card';
 import ProjectModal from '@/components/public/project-modal';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 
 function PortfolioContent() {
   const searchParams = useSearchParams();
@@ -30,18 +31,15 @@ function PortfolioContent() {
     // Fetch portfolio data with token
     const fetchPortfolio = async () => {
       try {
-        const response = await fetch(`/api/portfolio?token=${token}`);
-        if (!response.ok) {
-          if (response.status === 404) setError('Link expired or invalid');
-          else setError('Failed to load portfolio');
-          return;
+        const response = await apiClient.get<{ projects: Project[], categories: Category[] }>(`/portfolio?token=${token}`);
+        setProjects(response.data.projects || []);
+        setCategories(response.data.categories || []);
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          setError('Link expired or invalid');
+        } else {
+          setError('Failed to load portfolio');
         }
-
-        const data = await response.json();
-        setProjects(data.projects || []);
-        setCategories(data.categories || []);
-      } catch (err) {
-        setError('Failed to load portfolio');
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -54,7 +52,10 @@ function PortfolioContent() {
   const filteredProjects =
     selectedCategory === 'all'
       ? projects
-      : projects.filter((p) => p.category === selectedCategory);
+      : projects.filter((p) => {
+          const categoryId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
+          return categoryId === selectedCategory;
+        });
 
   if (isLoading) {
     return (

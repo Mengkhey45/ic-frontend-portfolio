@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -22,36 +23,29 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      // Validate email
-      if (email !== 'mengkheykhorn@gmail.com') {
+      // Validate email - align with backend .env
+      if (email !== 'mengkheykhorn8@gmail.com') {
         setError('Unauthorized email address');
+        setIsLoading(false);
         return;
       }
 
       if (!password) {
         setError('Password is required');
+        setIsLoading(false);
         return;
       }
 
-      // Call your backend API
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      // Call your backend API using apiClient
+      const response = await apiClient.post('/auth/login', { email, password });
+      const data = response.data as any;
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Login failed');
-      }
-
-      const data = await response.json();
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
       router.push('/admin/dashboard');
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.response?.data?.message || err.message || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
