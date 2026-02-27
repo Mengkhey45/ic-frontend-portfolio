@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import ProjectForm from '@/components/admin/project-form';
 import { Project } from '@/lib/types';
+import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 export default function EditProjectPage() {
   const params = useParams();
@@ -12,11 +14,25 @@ export default function EditProjectPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch project by ID
-    // setProject(fetchedProject);
-    // For now, dummy implementation
-    setProject(null);
-    setIsLoading(false);
+    const fetchProject = async () => {
+      try {
+        const response = await apiClient.get<{ projects: Project[] }>('projects');
+        // Filter the specific project from the list (or add a single get endpoint if backend supports it)
+        const foundProject = response.data.projects.find(p => p._id === projectId);
+        if (foundProject) {
+          setProject(foundProject);
+        }
+      } catch (err) {
+        console.error('Failed to fetch project:', err);
+        toast.error('Failed to load project details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (projectId) {
+      fetchProject();
+    }
   }, [projectId]);
 
   if (isLoading) {
@@ -29,8 +45,14 @@ export default function EditProjectPage() {
 
   if (!project) {
     return (
-      <div className="p-8">
-        <p className="text-center text-muted-foreground">Project not found</p>
+      <div className="p-8 text-center">
+        <p className="text-muted-foreground mb-4">Project not found</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="text-primary hover:underline"
+        >
+          Try again
+        </button>
       </div>
     );
   }

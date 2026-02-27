@@ -34,7 +34,7 @@ export default function SharingPage() {
 
   const fetchShareLinks = async () => {
     try {
-      const response = await apiClient.get<{ shareLinks: ShareLink[] }>('/share-links');
+      const response = await apiClient.get<{ shareLinks: ShareLink[] }>('share-links');
       setShareLinks(response.data.shareLinks || []);
     } catch (err: any) {
       console.error('Failed to fetch share links:', err);
@@ -53,7 +53,7 @@ export default function SharingPage() {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + parseInt(expirationDays));
 
-      const response = await apiClient.post<ShareLink>('/share-links', {
+      const response = await apiClient.post<ShareLink>('share-links', {
         isPortfolioLink: true,
         expiresAt,
       });
@@ -70,7 +70,7 @@ export default function SharingPage() {
 
   const deleteShareLink = async (id: string) => {
     try {
-      await apiClient.delete(`/share-links/${id}`);
+      await apiClient.delete(`share-links/${id}`);
       setShareLinks(shareLinks.filter((link) => link._id !== id));
       toast.success('Link deleted successfully');
     } catch (err: any) {

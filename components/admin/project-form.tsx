@@ -53,7 +53,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await apiClient.get<{ categories: Category[] }>('/categories');
+        const response = await apiClient.get<{ categories: Category[] }>('categories');
         setCategories(response.data.categories || []);
       } catch (err: any) {
         console.error('Failed to fetch categories:', err);
@@ -98,14 +98,14 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
       });
 
       if (isEditing) {
-        await apiClient.put(`/projects/${project?._id}`, formData, {
+        await apiClient.put(`projects/${project?._id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
         toast.success('Project updated successfully');
       } else {
-        await apiClient.post('/projects', formData, {
+        await apiClient.post('projects', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },

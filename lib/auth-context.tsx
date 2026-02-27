@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiClient } from './api-client';
 
 interface User {
   id: string;
@@ -44,21 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // This would call your backend API
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Login failed');
-      }
-
-      const data = await response.json();
+      const response = await apiClient.post<any>('auth/login', { email, password });
+      const data = response.data;
+      
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
+    } catch (err: any) {
+      throw new Error(err.response?.data?.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }

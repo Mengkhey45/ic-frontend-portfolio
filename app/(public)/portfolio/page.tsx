@@ -31,7 +31,7 @@ function PortfolioContent() {
     // Fetch portfolio data with token
     const fetchPortfolio = async () => {
       try {
-        const response = await apiClient.get<{ projects: Project[], categories: Category[] }>(`/portfolio?token=${token}`);
+        const response = await apiClient.get<{ projects: Project[], categories: Category[] }>(`portfolio?token=${token}`);
         setProjects(response.data.projects || []);
         setCategories(response.data.categories || []);
       } catch (err: any) {

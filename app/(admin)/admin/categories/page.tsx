@@ -31,7 +31,7 @@ export default function CategoriesPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await apiClient.get<{ categories: Category[] }>('/categories');
+      const response = await apiClient.get<{ categories: Category[] }>('categories');
       setCategories(response.data.categories || []);
     } catch (err: any) {
       console.error('Failed to fetch categories:', err);
@@ -54,7 +54,7 @@ export default function CategoriesPage() {
     setError('');
 
     try {
-      const response = await apiClient.post<Category>('/categories', newCategory);
+      const response = await apiClient.post<Category>('categories', newCategory);
       setCategories([...categories, response.data]);
       setNewCategory({ name: '', description: '' });
       toast.success('Category added successfully');
@@ -71,7 +71,7 @@ export default function CategoriesPage() {
     setError('');
 
     try {
-      await apiClient.put(`/categories/${id}`, editingCategory);
+      await apiClient.put(`categories/${id}`, editingCategory);
       setCategories(
         categories.map((c) => (c._id === id ? { ...c, ...editingCategory } : c))
       );
@@ -88,7 +88,7 @@ export default function CategoriesPage() {
 
   const handleDeleteCategory = async (id: string) => {
     try {
-      await apiClient.delete(`/categories/${id}`);
+      await apiClient.delete(`categories/${id}`);
       setCategories(categories.filter((c) => c._id !== id));
       toast.success('Category deleted successfully');
     } catch (err: any) {

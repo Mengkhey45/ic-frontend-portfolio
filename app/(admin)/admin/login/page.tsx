@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
       }
 
       // Call your backend API using apiClient
-      const response = await apiClient.post('/auth/login', { email, password });
+      const response = await apiClient.post('auth/login', { email, password });
       const data = response.data as any;
 
       localStorage.setItem('token', data.token);

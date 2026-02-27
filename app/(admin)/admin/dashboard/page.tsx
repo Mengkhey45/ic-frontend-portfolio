@@ -21,9 +21,9 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       try {
         const [projectsRes, categoriesRes, sharesRes] = await Promise.all([
-          apiClient.get<{ projects: any[] }>('/projects'),
-          apiClient.get<{ categories: any[] }>('/categories'),
-          apiClient.get<{ shareLinks: any[] }>('/share-links'),
+          apiClient.get<{ projects: any[] }>('projects'),
+          apiClient.get<{ categories: any[] }>('categories'),
+          apiClient.get<{ shareLinks: any[] }>('share-links'),
         ]);
 
         setStats({

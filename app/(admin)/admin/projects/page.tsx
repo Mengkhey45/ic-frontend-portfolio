@@ -37,7 +37,7 @@ export default function ProjectsPage() {
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get<{ projects: Project[] }>('/projects');
+      const response = await apiClient.get<{ projects: Project[] }>('projects');
       setProjects(response.data.projects || []);
       setFilteredProjects(response.data.projects || []);
     } catch (error: any) {
@@ -63,7 +63,7 @@ export default function ProjectsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await apiClient.delete(`/projects/${id}`);
+      await apiClient.delete(`projects/${id}`);
       setProjects(projects.filter((p) => p._id !== id));
       toast.success('Project deleted successfully');
     } catch (error: any) {
@@ -74,7 +74,7 @@ export default function ProjectsPage() {
 
   const toggleVisibility = async (id: string, isHidden: boolean) => {
     try {
-      await apiClient.patch(`/projects/${id}/visibility`, { isHidden: !isHidden });
+      await apiClient.patch(`projects/${id}/visibility`, { isHidden: !isHidden });
       setProjects(
         projects.map((p) =>
           p._id === id ? { ...p, isHidden: !isHidden } : p
