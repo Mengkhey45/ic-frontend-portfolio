@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Plus, Trash2, Edit2 } from 'lucide-react';
 import { Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,79 +23,79 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const queryClient = useQueryClient();
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState({ name: '', description: '' });
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchCategories = async () => {
-    try {
+  const { data: categories = [], isLoading: isFetching } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
       const response = await apiClient.get<{ categories: Category[] }>('categories');
-      setCategories(response.data.categories || []);
-    } catch (err: any) {
-      console.error('Failed to fetch categories:', err);
-      toast.error('Failed to load categories');
-    }
-  };
+      return response.data.categories || [];
+    },
+  });
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  const addMutation = useMutation({
+    mutationFn: (category: { name: string; description: string }) =>
+      apiClient.post<Category>('categories', category),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      setNewCategory({ name: '', description: '' });
+      toast.success('Category added successfully');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.message || err.message);
+      toast.error('Failed to add category');
+    },
+  });
 
-  const handleAddCategory = async (e: React.FormEvent) => {
+  const updateMutation = useMutation({
+    mutationFn: ({ id, category }: { id: string; category: { name: string; description: string } }) =>
+      apiClient.put(`categories/${id}`, category),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setEditingId(null);
+      setEditingCategory({ name: '', description: '' });
+      toast.success('Category updated successfully');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.message || err.message);
+      toast.error('Failed to update category');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`categories/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast.success('Category deleted successfully');
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.message || err.message);
+      toast.error('Failed to delete category');
+    },
+  });
+
+  const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategory.name) {
       setError('Category name is required');
       return;
     }
-
-    setIsLoading(true);
     setError('');
-
-    try {
-      const response = await apiClient.post<Category>('categories', newCategory);
-      setCategories([...categories, response.data]);
-      setNewCategory({ name: '', description: '' });
-      toast.success('Category added successfully');
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
-      toast.error('Failed to add category');
-    } finally {
-      setIsLoading(false);
-    }
+    addMutation.mutate(newCategory);
   };
 
-  const handleUpdateCategory = async (id: string) => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      await apiClient.put(`categories/${id}`, editingCategory);
-      setCategories(
-        categories.map((c) => (c._id === id ? { ...c, ...editingCategory } : c))
-      );
-      setEditingId(null);
-      setEditingCategory({ name: '', description: '' });
-      toast.success('Category updated successfully');
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
-      toast.error('Failed to update category');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleUpdateCategory = (id: string) => {
+    updateMutation.mutate({ id, category: editingCategory });
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      await apiClient.delete(`categories/${id}`);
-      setCategories(categories.filter((c) => c._id !== id));
-      toast.success('Category deleted successfully');
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
-      toast.error('Failed to delete category');
-    }
+  const handleDeleteCategory = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
   const container = {
@@ -144,7 +145,7 @@ export default function CategoriesPage() {
                     placeholder="e.g., Website"
                     value={newCategory.name}
                     onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                    disabled={isLoading}
+                    disabled={addMutation.isPending}
                   />
                 </div>
                 <div>
@@ -156,15 +157,15 @@ export default function CategoriesPage() {
                     onChange={(e) =>
                       setNewCategory({ ...newCategory, description: e.target.value })
                     }
-                    disabled={isLoading}
+                    disabled={addMutation.isPending}
                   />
                 </div>
                 <Button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={addMutation.isPending}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {isLoading ? 'Adding...' : 'Add Category'}
+                  {addMutation.isPending ? 'Adding...' : 'Add Category'}
                 </Button>
               </form>
             </CardContent>
@@ -178,7 +179,11 @@ export default function CategoriesPage() {
           animate="show"
           className="lg:col-span-2 space-y-4"
         >
-          {categories.length === 0 ? (
+          {isFetching ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : categories.length === 0 ? (
             <Card>
               <CardContent className="flex items-center justify-center py-12">
                 <p className="text-muted-foreground">No categories yet. Add one to get started!</p>
@@ -210,7 +215,7 @@ export default function CategoriesPage() {
                           <Button
                             size="sm"
                             onClick={() => handleUpdateCategory(category._id!)}
-                            disabled={isLoading}
+                            disabled={updateMutation.isPending}
                             className="bg-primary hover:bg-primary/90"
                           >
                             Save
@@ -219,7 +224,7 @@ export default function CategoriesPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => setEditingId(null)}
-                            disabled={isLoading}
+                            disabled={updateMutation.isPending}
                           >
                             Cancel
                           </Button>
@@ -269,6 +274,7 @@ export default function CategoriesPage() {
                                 <AlertDialogAction
                                   onClick={() => handleDeleteCategory(category._id!)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  disabled={deleteMutation.isPending}
                                 >
                                   Delete
                                 </AlertDialogAction>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Plus, Search, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
 import { Project } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Table,
   TableBody,
@@ -29,62 +30,57 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchProjects = async () => {
-    setIsLoading(true);
-    try {
+  const { data: projects = [], isLoading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
       const response = await apiClient.get<{ projects: Project[] }>('projects');
-      setProjects(response.data.projects || []);
-      setFilteredProjects(response.data.projects || []);
-    } catch (error: any) {
-      console.error('Failed to fetch projects:', error);
-      toast.error('Failed to load projects');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return response.data.projects || [];
+    },
+  });
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  useEffect(() => {
-    const filtered = projects.filter(
+  const filteredProjects = useMemo(() => {
+    return projects.filter(
       (project) =>
         project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         project.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    setFilteredProjects(filtered);
   }, [searchTerm, projects]);
 
-  const handleDelete = async (id: string) => {
-    try {
-      await apiClient.delete(`projects/${id}`);
-      setProjects(projects.filter((p) => p._id !== id));
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`projects/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success('Project deleted successfully');
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       console.error('Failed to delete project:', error);
       toast.error(error.response?.data?.message || 'Failed to delete project');
-    }
-  };
+    },
+  });
 
-  const toggleVisibility = async (id: string, isHidden: boolean) => {
-    try {
-      await apiClient.patch(`projects/${id}/visibility`, { isHidden: !isHidden });
-      setProjects(
-        projects.map((p) =>
-          p._id === id ? { ...p, isHidden: !isHidden } : p
-        )
-      );
-      toast.success(`Project is now ${!isHidden ? 'hidden' : 'visible'}`);
-    } catch (error: any) {
+  const visibilityMutation = useMutation({
+    mutationFn: ({ id, isHidden }: { id: string; isHidden: boolean }) =>
+      apiClient.patch(`projects/${id}/visibility`, { isHidden: !isHidden }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success(`Project is now ${!variables.isHidden ? 'hidden' : 'visible'}`);
+    },
+    onError: (error: any) => {
       console.error('Failed to toggle visibility:', error);
       toast.error('Failed to update visibility');
-    }
+    },
+  });
+
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
+  };
+
+  const toggleVisibility = (id: string, isHidden: boolean) => {
+    visibilityMutation.mutate({ id, isHidden });
   };
 
   return (
@@ -190,6 +186,7 @@ export default function ProjectsPage() {
                               size="sm"
                               onClick={() => toggleVisibility(project._id!, project.isHidden)}
                               title={project.isHidden ? 'Show' : 'Hide'}
+                              disabled={visibilityMutation.isPending}
                             >
                               {project.isHidden ? (
                                 <EyeOff className="w-4 h-4" />
@@ -218,6 +215,7 @@ export default function ProjectsPage() {
                                   <AlertDialogAction
                                     onClick={() => handleDelete(project._id!)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    disabled={deleteMutation.isPending}
                                   >
                                     Delete
                                   </AlertDialogAction>

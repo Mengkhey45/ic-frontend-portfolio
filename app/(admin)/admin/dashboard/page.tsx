@@ -5,42 +5,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { FolderOpen, Tag, Share2, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { toast } from 'sonner';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalProjects: 0,
-    totalCategories: 0,
-    activeShares: 0,
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      const [projectsRes, categoriesRes, sharesRes] = await Promise.all([
+        apiClient.get<{ projects: any[] }>('projects'),
+        apiClient.get<{ categories: any[] }>('categories'),
+        apiClient.get<{ shareLinks: any[] }>('share-links'),
+      ]);
+
+      return {
+        totalProjects: projectsRes.data.projects?.length || 0,
+        totalCategories: categoriesRes.data.categories?.length || 0,
+        activeShares: sharesRes.data.shareLinks?.length || 0,
+      };
+    },
   });
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [projectsRes, categoriesRes, sharesRes] = await Promise.all([
-          apiClient.get<{ projects: any[] }>('projects'),
-          apiClient.get<{ categories: any[] }>('categories'),
-          apiClient.get<{ shareLinks: any[] }>('share-links'),
-        ]);
-
-        setStats({
-          totalProjects: projectsRes.data.projects?.length || 0,
-          totalCategories: categoriesRes.data.categories?.length || 0,
-          activeShares: sharesRes.data.shareLinks?.length || 0,
-        });
-      } catch (err) {
-        console.error('Failed to fetch dashboard stats:', err);
-        // toast.error('Failed to load dashboard stats');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   const quickActions = [
     {
@@ -94,7 +78,7 @@ export default function AdminDashboard() {
       </motion.div>
 
       {/* Stats Grid */}
-      {!isLoading && (
+      {!isLoading && stats && (
         <motion.div
           variants={container}
           initial="hidden"

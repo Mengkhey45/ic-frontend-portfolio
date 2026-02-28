@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Copy, Trash2, Plus, Calendar, Link as LinkIcon } from 'lucide-react';
 import { ShareLink } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,57 +28,50 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function SharingPage() {
-  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
+  const queryClient = useQueryClient();
   const [expirationDays, setExpirationDays] = useState('7');
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchShareLinks = async () => {
-    try {
+  const { data: shareLinks = [], isLoading: isFetching } = useQuery({
+    queryKey: ['share-links'],
+    queryFn: async () => {
       const response = await apiClient.get<{ shareLinks: ShareLink[] }>('share-links');
-      setShareLinks(response.data.shareLinks || []);
-    } catch (err: any) {
-      console.error('Failed to fetch share links:', err);
-    }
-  };
+      return response.data.shareLinks || [];
+    },
+  });
 
-  useEffect(() => {
-    fetchShareLinks();
-  }, []);
-
-  const generatePortfolioLink = async () => {
-    setIsLoading(true);
-    setError('');
-
-    try {
+  const generateMutation = useMutation({
+    mutationFn: (days: string) => {
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + parseInt(expirationDays));
-
-      const response = await apiClient.post<ShareLink>('share-links', {
+      expiresAt.setDate(expiresAt.getDate() + parseInt(days));
+      return apiClient.post<ShareLink>('share-links', {
         isPortfolioLink: true,
         expiresAt,
       });
-
-      setShareLinks([...shareLinks, response.data]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['share-links'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success('Portfolio link generated successfully');
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       setError(err.response?.data?.message || err.message);
       toast.error('Failed to generate link');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
 
-  const deleteShareLink = async (id: string) => {
-    try {
-      await apiClient.delete(`share-links/${id}`);
-      setShareLinks(shareLinks.filter((link) => link._id !== id));
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`share-links/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['share-links'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success('Link deleted successfully');
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       setError(err.response?.data?.message || err.message);
       toast.error('Failed to delete link');
-    }
-  };
+    },
+  });
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -147,11 +141,11 @@ export default function SharingPage() {
               </div>
               <div className="flex items-end">
                 <Button
-                  onClick={generatePortfolioLink}
-                  disabled={isLoading}
+                  onClick={() => generateMutation.mutate(expirationDays)}
+                  disabled={generateMutation.isPending}
                   className="w-full bg-primary hover:bg-primary/90"
                 >
-                  {isLoading ? 'Generating...' : 'Generate Link'}
+                  {generateMutation.isPending ? 'Generating...' : 'Generate Link'}
                 </Button>
               </div>
             </div>
@@ -173,7 +167,11 @@ export default function SharingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {shareLinks.length === 0 ? (
+            {isFetching ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : shareLinks.length === 0 ? (
               <div className="text-center py-12">
                 <LinkIcon className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-50" />
                 <p className="text-muted-foreground">No share links yet. Create one to get started!</p>
@@ -187,7 +185,7 @@ export default function SharingPage() {
                       (1000 * 60 * 60 * 24)
                   );
 
-                  const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/portfolio?token=${link.token}`;
+                  const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/portfolio?token=${link.token}`;
 
                   return (
                     <motion.div key={link._id} variants={item}>
@@ -227,8 +225,9 @@ export default function SharingPage() {
                                   <div className="flex justify-end gap-2">
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction
-                                      onClick={() => deleteShareLink(link._id!)}
+                                      onClick={() => deleteMutation.mutate(link._id!)}
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      disabled={deleteMutation.isPending}
                                     >
                                       Delete
                                     </AlertDialogAction>

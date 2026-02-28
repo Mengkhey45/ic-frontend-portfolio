@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/theme-provider'
+import { QueryProvider } from '@/components/query-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -60,16 +61,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-          <Analytics />
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+            <Analytics />
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   )
