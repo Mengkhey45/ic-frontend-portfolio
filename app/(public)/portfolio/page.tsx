@@ -164,10 +164,10 @@ function PortfolioContent() {
         animate={{ opacity: 1, y: 0 }}
         className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold text-foreground mb-2">Portfolio</h1>
-            <p className="text-muted-foreground">Explore projects and work samples</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="text-center mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-1 sm:mb-2">Portfolio</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Explore projects and work samples</p>
           </div>
 
           {/* Category Filter */}

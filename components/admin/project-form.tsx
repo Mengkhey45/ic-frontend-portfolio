@@ -191,8 +191,8 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 <Select 
                   defaultValue={typeof project?.category === 'object' ? (project?.category as any)._id : (project?.category || '')}

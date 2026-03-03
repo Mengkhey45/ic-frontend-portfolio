@@ -33,44 +33,46 @@ export default function ProjectModal({ project, onClose }: ProjectModalProps) {
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-card rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-card rounded-xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto"
         >
           {/* Header */}
-          <div className="sticky top-0 z-10 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-foreground">{project.title}</h2>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
+          <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-md border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate mr-2">{project.title}</h2>
+            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 sm:h-10 sm:w-10">
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-6 sm:space-y-8">
             {/* Main Image Gallery */}
             {imageMedia.length > 0 && (
               <div className="space-y-4">
-                <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                <div className="relative aspect-video bg-muted rounded-xl overflow-hidden shadow-inner">
                   <Image
                     src={imageMedia[activeMediaIndex].url}
                     alt={project.title}
                     fill
                     className="object-cover"
+                    priority
                   />
                 </div>
                 {imageMedia.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2">
+                  <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
                     {imageMedia.map((media, idx) => (
                       <motion.button
                         key={idx}
                         onClick={() => setActiveMediaIndex(idx)}
                         whileHover={{ scale: 1.05 }}
-                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                          activeMediaIndex === idx ? 'border-primary' : 'border-border'
+                        whileTap={{ scale: 0.95 }}
+                        className={`flex-shrink-0 w-14 h-14 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                          activeMediaIndex === idx ? 'border-primary shadow-md' : 'border-border opacity-70 hover:opacity-100'
                         }`}
                       >
                         <Image
                           src={media.url}
                           alt={`Thumbnail ${idx}`}
-                          width={64}
-                          height={64}
+                          width={80}
+                          height={80}
                           className="w-full h-full object-cover"
                         />
                       </motion.button>
