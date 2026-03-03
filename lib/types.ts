@@ -31,6 +31,9 @@ export interface ShareLink {
   token: string;
   expiresAt: Date;
   isPortfolioLink: boolean; // true for full portfolio, false for single project
+  privateNote?: string;
+  accessCode?: string;
+  allowedCategories?: string[]; // IDs of allowed categories
   createdAt?: Date;
 }
 

@@ -7,7 +7,8 @@ import { Project, Category } from '@/lib/types';
 import ProjectCard from '@/components/public/project-card';
 import ProjectModal from '@/components/public/project-modal';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { AlertCircle, Lock, ArrowRight } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
 function PortfolioContent() {
@@ -20,34 +21,57 @@ function PortfolioContent() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCodeRequired, setIsCodeRequired] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  useEffect(() => {
+  const fetchPortfolio = async (code?: string) => {
     if (!token) {
       setError('Invalid access link');
       setIsLoading(false);
       return;
     }
 
-    // Fetch portfolio data with token
-    const fetchPortfolio = async () => {
-      try {
-        const response = await apiClient.get<{ projects: Project[], categories: Category[] }>(`portfolio?token=${token}`);
-        setProjects(response.data.projects || []);
-        setCategories(response.data.categories || []);
-      } catch (err: any) {
-        if (err.response?.status === 404) {
-          setError('Link expired or invalid');
-        } else {
-          setError('Failed to load portfolio');
+    try {
+      setIsVerifying(true);
+      const url = code 
+        ? `portfolio?token=${token}&accessCode=${code}` 
+        : `portfolio?token=${token}`;
+      
+      const response = await apiClient.get<{ projects: Project[], categories: Category[] }>(url);
+      setProjects(response.data.projects || []);
+      setCategories(response.data.categories || []);
+      setIsCodeRequired(false);
+      setError(null);
+    } catch (err: any) {
+      // 403 Forbidden is now used for the access code prompt
+      if (err.response?.status === 403 && err.response?.data?.codeRequired) {
+        setIsCodeRequired(true);
+        if (code) {
+          setError('Incorrect access code');
         }
-        console.error(err);
-      } finally {
-        setIsLoading(false);
+      } else if (err.response?.status === 404) {
+        setError('Link expired or invalid');
+        console.error('Portfolio link error:', err.response?.data?.message);
+      } else {
+        setError('Failed to load portfolio');
+        console.error('Portfolio load error:', err);
       }
-    };
+    } finally {
+      setIsLoading(false);
+      setIsVerifying(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPortfolio();
   }, [token]);
+
+  const handleCodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessCode) return;
+    fetchPortfolio(accessCode);
+  };
 
   const filteredProjects =
     selectedCategory === 'all'
@@ -68,7 +92,54 @@ function PortfolioContent() {
     );
   }
 
-  if (error) {
+  if (isCodeRequired) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full"
+        >
+          <div className="bg-card border border-border rounded-xl p-8 shadow-lg text-center">
+            <div className="bg-primary/10 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+              <Lock className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Protected Portfolio</h1>
+            <p className="text-muted-foreground mb-8">This link requires an access code to view the contents.</p>
+            
+            <form onSubmit={handleCodeSubmit} className="space-y-4">
+              <div className="relative">
+                <Input
+                  type="password"
+                  placeholder="Enter access code"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  className="pr-12 py-6 text-center text-lg tracking-widest"
+                  autoFocus
+                />
+              </div>
+              {error && (
+                <p className="text-sm text-destructive font-medium">{error}</p>
+              )}
+              <Button 
+                type="submit" 
+                className="w-full py-6 text-lg" 
+                disabled={isVerifying || !accessCode}
+              >
+                {isVerifying ? 'Verifying...' : (
+                  <span className="flex items-center gap-2">
+                    Access Portfolio <ArrowRight className="w-5 h-5" />
+                  </span>
+                )}
+              </Button>
+            </form>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (error && !isCodeRequired) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md">

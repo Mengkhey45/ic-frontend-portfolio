@@ -31,10 +31,16 @@ class ApiClient {
     this.instance.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
+        // Redirect to login only on 401 Unauthorized (admin routes)
         if (error.response?.status === 401) {
           localStorage.removeItem('token');
-          window.location.href = '/admin/login';
+          if (typeof window !== 'undefined') {
+            if (!window.location.pathname.includes('/admin/login')) {
+              window.location.href = '/admin/login';
+            }
+          }
         }
+        // 403 Forbidden is used for public portfolio access code requirement, DO NOT REDIRECT
         return Promise.reject(error);
       }
     );

@@ -6,8 +6,15 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
-import { Project } from '@/lib/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Search, Eye, EyeOff, Edit, Trash2, Filter } from 'lucide-react';
+import { Project, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,8 +39,9 @@ import {
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const response = await apiClient.get<{ projects: Project[] }>('projects');
@@ -41,13 +49,29 @@ export default function ProjectsPage() {
     },
   });
 
+  const { data: categories = [], isLoading: isCategoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const response = await apiClient.get<{ categories: Category[] }>('categories');
+      return response.data.categories || [];
+    },
+  });
+
   const filteredProjects = useMemo(() => {
-    return projects.filter(
-      (project) =>
+    return projects.filter((project) => {
+      const matchesSearch =
         project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm, projects]);
+        project.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const projectCategoryId = typeof project.category === 'object' 
+        ? (project.category as any)._id 
+        : project.category;
+        
+      const matchesCategory = selectedCategory === 'all' || projectCategoryId === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [searchTerm, selectedCategory, projects]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`projects/${id}`),
@@ -83,6 +107,8 @@ export default function ProjectsPage() {
     visibilityMutation.mutate({ id, isHidden });
   };
 
+  const isLoading = isProjectsLoading || isCategoriesLoading;
+
   return (
     <div className="p-8 space-y-6">
       <motion.div
@@ -102,13 +128,14 @@ export default function ProjectsPage() {
         </Button>
       </motion.div>
 
-      {/* Search Bar */}
+      {/* Search and Filter Bar */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
+        className="flex flex-col md:flex-row gap-4"
       >
-        <div className="relative">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search projects..."
@@ -116,6 +143,24 @@ export default function ProjectsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-muted"
           />
+        </div>
+        <div className="w-full md:w-64">
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="bg-muted">
+              <div className="flex items-center">
+                <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Filter by Category" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat._id} value={cat._id || ''}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </motion.div>
 
@@ -137,10 +182,27 @@ export default function ProjectsPage() {
               </div>
             ) : filteredProjects.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">No projects yet</p>
-                <Button asChild variant="outline">
-                  <Link href="/admin/projects/new">Create your first project</Link>
-                </Button>
+                <p className="text-muted-foreground mb-4">
+                  {searchTerm || selectedCategory !== 'all' 
+                    ? 'No projects match your search or filter' 
+                    : 'No projects yet'}
+                </p>
+                {!searchTerm && selectedCategory === 'all' && (
+                  <Button asChild variant="outline">
+                    <Link href="/admin/projects/new">Create your first project</Link>
+                  </Button>
+                )}
+                {(searchTerm || selectedCategory !== 'all') && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedCategory('all');
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
