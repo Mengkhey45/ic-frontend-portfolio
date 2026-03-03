@@ -35,9 +35,11 @@ function PortfolioContent() {
 
     try {
       setIsVerifying(true);
+      // Add timestamp to prevent caching issues
+      const timestamp = new Date().getTime();
       const url = code 
-        ? `portfolio?token=${token}&accessCode=${code}` 
-        : `portfolio?token=${token}`;
+        ? `portfolio?token=${token}&accessCode=${code}&t=${timestamp}` 
+        : `portfolio?token=${token}&t=${timestamp}`;
       
       const response = await apiClient.get<{ projects: Project[], categories: Category[] }>(url);
       setProjects(response.data.projects || []);
@@ -45,11 +47,12 @@ function PortfolioContent() {
       setIsCodeRequired(false);
       setError(null);
     } catch (err: any) {
-      // 403 Forbidden is now used for the access code prompt
+      console.log("Portfolio access error:", err.response?.status, err.response?.data);
+      // 403 Forbidden is used for the access code prompt
       if (err.response?.status === 403 && err.response?.data?.codeRequired) {
         setIsCodeRequired(true);
         if (code) {
-          setError('Incorrect access code');
+          setError('Incorrect access code. Please check and try again.');
         }
       } else if (err.response?.status === 404) {
         setError('Link expired or invalid');
