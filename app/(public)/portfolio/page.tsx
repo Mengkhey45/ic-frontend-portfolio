@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertCircle, Lock, ArrowRight } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { ThemeToggle } from '@/components/admin/theme-toggle';
 
 function PortfolioContent() {
   const searchParams = useSearchParams();
@@ -94,7 +95,10 @@ function PortfolioContent() {
 
   if (isCodeRequired) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+        <div className="absolute top-4 right-4 sm:top-8 sm:right-8">
+          <ThemeToggle />
+        </div>
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -141,7 +145,10 @@ function PortfolioContent() {
 
   if (error && !isCodeRequired) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+        <div className="absolute top-4 right-4 sm:top-8 sm:right-8">
+          <ThemeToggle />
+        </div>
         <div className="text-center max-w-md">
           <div className="bg-destructive/10 p-3 rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-destructive" />
@@ -164,7 +171,10 @@ function PortfolioContent() {
         animate={{ opacity: 1, y: 0 }}
         className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 relative">
+          <div className="absolute top-4 right-4 sm:top-6 sm:right-6 lg:right-8">
+            <ThemeToggle />
+          </div>
           <div className="text-center mb-4 sm:mb-6">
             <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-1 sm:mb-2">Portfolio</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Explore projects and work samples</p>
