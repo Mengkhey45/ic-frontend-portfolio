@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FolderOpen, Tag, Share2, X } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Tag, Share2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -17,27 +17,42 @@ const navItems = [
 interface AdminSidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
 }
 
-export default function AdminSidebar({ isOpen, setIsOpen }: AdminSidebarProps) {
+export default function AdminSidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
     <motion.aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0",
-        !isOpen && "-translate-x-full lg:translate-x-0"
+        "fixed inset-y-0 left-0 z-50 bg-card border-r border-border flex flex-col transition-all duration-300 lg:relative lg:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        isCollapsed ? "w-20" : "w-64"
       )}
     >
-      <div className="p-6 border-b border-border flex items-center justify-between">
-        <Link href="/admin/dashboard" className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <span className="font-bold text-primary">IC</span>
+      <div className={cn(
+        "p-6 border-b border-border flex items-center transition-all duration-300",
+        isCollapsed ? "justify-center px-4" : "justify-between"
+      )}>
+        <Link href="/admin/dashboard" className="flex items-center space-x-2 overflow-hidden">
+          <div className="min-w-[32px] w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <span className="font-bold text-primary text-sm">IC</span>
           </div>
-          <div>
-            <h1 className="font-bold text-foreground">Portfolio</h1>
-            <p className="text-xs text-muted-foreground">Admin</p>
-          </div>
+          <AnimatePresence>
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                className="whitespace-nowrap"
+              >
+                <h1 className="font-bold text-foreground">Portfolio</h1>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Admin</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Link>
         <Button 
           variant="ghost" 
@@ -55,27 +70,60 @@ export default function AdminSidebar({ isOpen, setIsOpen }: AdminSidebarProps) {
           const isActive = pathname.startsWith(item.href);
 
           return (
-            <motion.div key={item.href} whileHover={{ x: 4 }}>
+            <motion.div key={item.href} whileHover={{ x: isCollapsed ? 0 : 4 }}>
               <Link
                 href={item.href}
                 className={cn(
-                  'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
+                  'flex items-center rounded-lg transition-all duration-300',
+                  isCollapsed ? 'justify-center p-3' : 'px-4 py-3 space-x-3',
                   isActive
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
+                title={isCollapsed ? item.label : ''}
               >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <Icon className={cn("w-5 h-5 min-w-[20px]", isActive ? "text-primary" : "")} />
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      className="font-medium whitespace-nowrap overflow-hidden"
+                    >
+                      {item.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </Link>
             </motion.div>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
-        <p className="text-xs text-muted-foreground text-center">
-          Portfolio Management System v1.0
+      {/* Collapse Toggle Button (Desktop Only) */}
+      <div className="hidden lg:block p-4 border-t border-border">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full flex items-center justify-center hover:bg-primary/5 text-muted-foreground hover:text-primary transition-colors"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          {isCollapsed ? <ChevronRight className="w-5 h-5" /> : (
+            <>
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              <span className="text-xs font-medium">Collapse Sidebar</span>
+            </>
+          )}
+        </Button>
+      </div>
+
+      <div className={cn(
+        "p-4 border-t border-border transition-all duration-300",
+        isCollapsed ? "text-center" : ""
+      )}>
+        <p className="text-[10px] text-muted-foreground truncate">
+          {isCollapsed ? "v1" : "Admin v1.0"}
         </p>
       </div>
     </motion.aside>

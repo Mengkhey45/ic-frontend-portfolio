@@ -18,6 +18,7 @@ export default function AdminLayout({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -58,7 +59,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden transition-all duration-300">
       {/* Sidebar Overlay for Mobile */}
       {isMobile && isSidebarOpen && (
         <div 
@@ -68,7 +69,12 @@ export default function AdminLayout({
       )}
 
       {/* Sidebar */}
-      <AdminSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      <AdminSidebar 
+        isOpen={isSidebarOpen} 
+        setIsOpen={setIsSidebarOpen} 
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+      />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <AdminHeader onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
