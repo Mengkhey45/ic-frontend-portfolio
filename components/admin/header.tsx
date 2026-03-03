@@ -8,12 +8,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, User } from 'lucide-react';
+import { LogOut, Settings, User, Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { ThemeToggle } from './theme-toggle';
 
-export default function AdminHeader() {
+interface AdminHeaderProps {
+  onMenuClick: () => void;
+}
+
+export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const router = useRouter();
   const [user, setUser] = useState<{ email: string; name: string } | null>(null);
 
@@ -38,14 +42,28 @@ export default function AdminHeader() {
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card border-b border-border px-6 py-4 flex items-center justify-between"
+      className="bg-card border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between"
     >
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Portfolio Admin</h2>
-        <p className="text-sm text-muted-foreground">Manage your projects and portfolio</p>
+      <div className="flex items-center gap-3">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="lg:hidden" 
+          onClick={onMenuClick}
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+        <div className="hidden sm:block">
+          <h2 className="text-base sm:text-lg font-semibold text-foreground truncate max-w-[150px] sm:max-w-none">
+            Portfolio Admin
+          </h2>
+          <p className="text-xs text-muted-foreground hidden md:block">
+            Manage your projects and portfolio
+          </p>
+        </div>
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2 sm:space-x-4">
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

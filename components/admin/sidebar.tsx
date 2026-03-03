@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FolderOpen, Tag, Share2 } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Tag, Share2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
 
 const navItems = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -13,16 +14,22 @@ const navItems = [
   { href: '/admin/sharing', icon: Share2, label: 'Share Portfolio' },
 ];
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+}
+
+export default function AdminSidebar({ isOpen, setIsOpen }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
     <motion.aside
-      initial={{ x: -250 }}
-      animate={{ x: 0 }}
-      className="w-64 bg-card border-r border-border flex flex-col"
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border flex flex-col transition-transform duration-300 lg:relative lg:translate-x-0",
+        !isOpen && "-translate-x-full lg:translate-x-0"
+      )}
     >
-      <div className="p-6 border-b border-border">
+      <div className="p-6 border-b border-border flex items-center justify-between">
         <Link href="/admin/dashboard" className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <span className="font-bold text-primary">IC</span>
@@ -32,9 +39,17 @@ export default function AdminSidebar() {
             <p className="text-xs text-muted-foreground">Admin</p>
           </div>
         </Link>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="lg:hidden" 
+          onClick={() => setIsOpen(false)}
+        >
+          <X className="w-5 h-5" />
+        </Button>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname.startsWith(item.href);

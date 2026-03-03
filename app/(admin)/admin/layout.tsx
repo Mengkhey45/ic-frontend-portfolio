@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import AdminSidebar from '@/components/admin/sidebar';
 import AdminHeader from '@/components/admin/header';
+import { useMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 export default function AdminLayout({
   children,
@@ -12,8 +14,10 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isMobile = useMobile();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -26,6 +30,13 @@ export default function AdminLayout({
     }
     setIsLoading(false);
   }, [router, pathname]);
+
+  // Close sidebar when navigating on mobile
+  useEffect(() => {
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  }, [pathname, isMobile]);
 
   if (isLoading) {
     return (
@@ -47,12 +58,24 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <AdminHeader />
-        <main className="flex-1 overflow-auto p-4 md:p-8">
-          {children}
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar Overlay for Mobile */}
+      {isMobile && isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <AdminSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <AdminHeader onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <main className="flex-1 overflow-auto p-4 sm:p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>
