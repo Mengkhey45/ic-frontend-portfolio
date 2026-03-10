@@ -46,7 +46,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
     defaultValues: {
       title: project?.title || '',
       description: project?.description || '',
-      category: typeof project?.category === 'object' ? (project?.category as any)._id : (project?.category || ''),
+      category: typeof project?.category === 'object' && project?.category ? (project?.category as any)._id : (project?.category || ''),
       label: project?.label || '',
       isHidden: project?.isHidden || false,
       links: project?.links || [],
@@ -195,7 +195,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
                 <Select 
-                  defaultValue={typeof project?.category === 'object' ? (project?.category as any)._id : (project?.category || '')}
+                  defaultValue={typeof project?.category === 'object' && project?.category ? (project?.category as any)._id : (project?.category || '')}
                   onValueChange={(value) => setValue('category', value)}
                 >
                   <SelectTrigger>
