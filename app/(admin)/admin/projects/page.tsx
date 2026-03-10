@@ -287,10 +287,11 @@ export default function ProjectsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="w-10">
+                      <TableHead className="w-12">
                         <Checkbox
                           checked={allFilteredChecked}
                           onCheckedChange={toggleAll}
+                          className="size-5 border-2 border-muted-foreground/50 data-[state=checked]:border-primary"
                         />
                       </TableHead>
                       <TableHead>Title</TableHead>
@@ -313,6 +314,7 @@ export default function ProjectsPage() {
                           <Checkbox
                             checked={checkedProjects.has(project._id!)}
                             onCheckedChange={() => toggleCheck(project._id!)}
+                            className="size-5 border-2 border-muted-foreground/50 data-[state=checked]:border-primary"
                           />
                         </TableCell>
                         <TableCell className="font-medium max-w-xs">
