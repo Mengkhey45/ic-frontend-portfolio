@@ -34,6 +34,7 @@ export interface ShareLink {
   privateNote?: string;
   accessCode?: string;
   allowedCategories?: string[]; // IDs of allowed categories
+  allowedProjects?: string[]; // IDs of allowed projects
   createdAt?: Date;
 }
 
