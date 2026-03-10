@@ -23,15 +23,8 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      // Validate email - align with backend .env
-      if (email !== 'mengkheykhorn8@gmail.com') {
-        setError('Unauthorized email address');
-        setIsLoading(false);
-        return;
-      }
-
-      if (!password) {
-        setError('Password is required');
+      if (!email || !password) {
+        setError('Email and password are required');
         setIsLoading(false);
         return;
       }
