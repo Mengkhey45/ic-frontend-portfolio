@@ -131,8 +131,23 @@ export default function ProjectsPage() {
         </Button>
       </motion.div>
 
+      {/* Smart Search Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <SmartSearch
+          categories={categories}
+          searchTerm={searchTerm}
+          selectedCategories={selectedCategories}
+          onSearchChange={setSearchTerm}
+          onCategoriesChange={setSelectedCategories}
+        />
+      </motion.div>
+
       {/* Category Filter Bar */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant={selectedCategories.length === 0 ? 'default' : 'outline'}
           size="sm"
@@ -157,20 +172,6 @@ export default function ProjectsPage() {
           </Button>
         ))}
       </div>
-      {/* Smart Search Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <SmartSearch
-          categories={categories}
-          searchTerm={searchTerm}
-          selectedCategories={selectedCategories}
-          onSearchChange={setSearchTerm}
-          onCategoriesChange={setSelectedCategories}
-        />
-      </motion.div>
 
       {/* Projects Table */}
       <motion.div

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,8 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Copy, Trash2, Plus, Calendar, Link as LinkIcon, Shield, StickyNote, Filter, CheckSquare, Square, FolderOpen } from 'lucide-react';
-import { ShareLink, Category, Project } from '@/lib/types';
+import { Copy, Trash2, Plus, Calendar, Link as LinkIcon, Shield, StickyNote, Filter, CheckSquare, Square } from 'lucide-react';
+import { ShareLink, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -35,7 +35,6 @@ export default function SharingPage() {
   const [expirationDays, setExpirationDays] = useState('7');
   const [privateNote, setPrivateNote] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   // Fetch share links
@@ -56,90 +55,38 @@ export default function SharingPage() {
     },
   });
 
-  // Fetch projects
-  const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const response = await apiClient.get<{ projects: Project[] }>('projects');
-      return response.data.projects || [];
-    },
-  });
-
-  // Filter projects by selected categories
-  const filteredProjects = useMemo(() => {
-    if (selectedCategories.length === 0) return projects.filter(p => !p.isHidden);
-    return projects.filter(p => {
-      if (p.isHidden) return false;
-      const catId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
-      return selectedCategories.includes(catId);
-    });
-  }, [projects, selectedCategories]);
-
-  // Set default selected categories and projects to "all" once loaded
+  // Set default selected categories to "all" once categories are loaded
   useEffect(() => {
     if (categories.length > 0 && selectedCategories.length === 0) {
       setSelectedCategories(categories.map(cat => cat._id!).filter(Boolean));
     }
   }, [categories]);
 
-  useEffect(() => {
-    if (filteredProjects.length > 0 && selectedProjects.length === 0) {
-      setSelectedProjects(filteredProjects.map(p => p._id!).filter(Boolean));
-    }
-  }, [filteredProjects]);
-
   const toggleCategory = (categoryId: string) => {
-    const newCategories = selectedCategories.includes(categoryId)
-      ? selectedCategories.filter(id => id !== categoryId)
-      : [...selectedCategories, categoryId];
-    setSelectedCategories(newCategories);
-    // When categories change, update selected projects to match
-    const visibleProjectIds = projects
-      .filter(p => {
-        if (p.isHidden) return false;
-        const catId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
-        return newCategories.includes(catId);
-      })
-      .map(p => p._id!);
-    setSelectedProjects(visibleProjectIds);
+    setSelectedCategories(prev => 
+      prev.includes(categoryId) 
+        ? prev.filter(id => id !== categoryId) 
+        : [...prev, categoryId]
+    );
   };
 
   const selectAllCategories = () => {
     setSelectedCategories(categories.map(cat => cat._id!).filter(Boolean));
-    setSelectedProjects(projects.filter(p => !p.isHidden).map(p => p._id!).filter(Boolean));
   };
 
   const deselectAllCategories = () => {
     setSelectedCategories([]);
-    setSelectedProjects([]);
-  };
-
-  const toggleProject = (projectId: string) => {
-    setSelectedProjects(prev =>
-      prev.includes(projectId)
-        ? prev.filter(id => id !== projectId)
-        : [...prev, projectId]
-    );
-  };
-
-  const selectAllProjects = () => {
-    setSelectedProjects(filteredProjects.map(p => p._id!).filter(Boolean));
-  };
-
-  const deselectAllProjects = () => {
-    setSelectedProjects([]);
   };
 
   const generateMutation = useMutation({
-    mutationFn: (data: { days: string; privateNote: string; allowedCategories: string[]; allowedProjects: string[] }) => {
+    mutationFn: (data: { days: string; privateNote: string; allowedCategories: string[] }) => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + parseInt(data.days));
       return apiClient.post<ShareLink>('share-links', {
         isPortfolioLink: true,
         expiresAt,
         privateNote: data.privateNote,
-        allowedCategories: data.allowedCategories,
-        allowedProjects: data.allowedProjects
+        allowedCategories: data.allowedCategories
       });
     },
     onSuccess: () => {
@@ -187,7 +134,7 @@ export default function SharingPage() {
     show: { opacity: 1, y: 0 },
   };
 
-  const isFetching = isLinksLoading || isCategoriesLoading || isProjectsLoading;
+  const isFetching = isLinksLoading || isCategoriesLoading;
 
   return (
     <div className="p-8 space-y-6">
@@ -311,83 +258,14 @@ export default function SharingPage() {
               )}
             </div>
 
-            {/* Project Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4" />
-                  Select Projects to Include ({selectedProjects.length}/{filteredProjects.length})
-                </Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={selectAllProjects}
-                    className="text-xs h-8"
-                  >
-                    <CheckSquare className="w-3.5 h-3.5 mr-1" />
-                    Select All
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={deselectAllProjects}
-                    className="text-xs h-8"
-                  >
-                    <Square className="w-3.5 h-3.5 mr-1" />
-                    Deselect All
-                  </Button>
-                </div>
-              </div>
-
-              {isProjectsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                  Loading projects...
-                </div>
-              ) : filteredProjects.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No visible projects in selected categories</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-64 overflow-y-auto pr-1">
-                  {filteredProjects.map((project) => (
-                    <div
-                      key={project._id}
-                      className={`flex items-center space-x-2 border rounded-lg p-3 transition-colors cursor-pointer hover:bg-accent/50 ${
-                        selectedProjects.includes(project._id!)
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border'
-                      }`}
-                      onClick={() => toggleProject(project._id!)}
-                    >
-                      <Checkbox
-                        id={`proj-${project._id}`}
-                        checked={selectedProjects.includes(project._id!)}
-                        onCheckedChange={() => toggleProject(project._id!)}
-                      />
-                      <Label
-                        htmlFor={`proj-${project._id}`}
-                        className="text-sm font-normal cursor-pointer flex-1 truncate"
-                      >
-                        {project.title}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedProjects.length === 0 && filteredProjects.length > 0 && (
-                <p className="text-xs text-destructive">Please select at least one project</p>
-              )}
-            </div>
-
             <div className="flex justify-end pt-2">
               <Button
                 onClick={() => generateMutation.mutate({ 
                   days: expirationDays, 
                   privateNote, 
-                  allowedCategories: selectedCategories,
-                  allowedProjects: selectedProjects
+                  allowedCategories: selectedCategories 
                 })}
-                disabled={generateMutation.isPending || selectedProjects.length === 0}
+                disabled={generateMutation.isPending || selectedCategories.length === 0}
                 className="bg-primary hover:bg-primary/90 min-w-[150px]"
               >
                 {generateMutation.isPending ? 'Generating...' : 'Generate Link'}
@@ -438,13 +316,6 @@ export default function SharingPage() {
                         .map(cat => cat.name)
                     : ['All Categories'];
 
-                  // Find project names for display
-                  const allowedProjNames = link.allowedProjects && link.allowedProjects.length > 0
-                    ? projects
-                        .filter(p => link.allowedProjects?.includes(p._id!))
-                        .map(p => p.title)
-                    : [];
-
                   return (
                     <motion.div key={link._id} variants={item}>
                       <Card className={`${expired ? 'opacity-50' : ''}`}>
@@ -481,14 +352,6 @@ export default function SharingPage() {
                                         : allowedCatNames.join(', ')}
                                     </span>
                                   </div>
-                                  {allowedProjNames.length > 0 && (
-                                    <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                                      <FolderOpen className="w-3 h-3" />
-                                      <span>
-                                        {allowedProjNames.length} {allowedProjNames.length === 1 ? 'project' : 'projects'} selected
-                                      </span>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                               <AlertDialog>
@@ -560,7 +423,7 @@ export default function SharingPage() {
       {/* Info Box */}
       <Alert className="bg-primary/5 border-primary/20">
         <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
-          Share links provide secure, time-limited access to selected projects in your portfolio. An access code is automatically 
+          Share links provide secure, time-limited access to specific categories of your portfolio. An access code is automatically 
           generated for each link for maximum security. Share the link and the access code with your clients.
         </AlertDescription>
       </Alert>
