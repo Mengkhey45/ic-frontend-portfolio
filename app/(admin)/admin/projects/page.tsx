@@ -5,12 +5,16 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, EyeOff, Edit, Trash2, Copy, Calendar, Shield, Link as LinkIcon } from 'lucide-react';
+import { Plus, Eye, EyeOff, Edit, Trash2, Link2, Copy, Check, Loader2 } from 'lucide-react';
 import { SmartSearch } from '@/components/admin/smart-search';
-import { Project, Category, ShareLink } from '@/lib/types';
+import { Project, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -35,15 +39,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import Image from 'next/image';
 
 export default function ProjectsPage() {
@@ -51,50 +46,12 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [previewProject, setPreviewProject] = useState<Project | null>(null);
-  const [shareExpDays, setShareExpDays] = useState('7');
-  const [shareNote, setShareNote] = useState('');
-
-  // Fetch share links for projects
-  const { data: shareLinks = [] } = useQuery({
-    queryKey: ['share-links'],
-    queryFn: async () => {
-      const response = await apiClient.get<{ shareLinks: ShareLink[] }>('share-links');
-      return response.data.shareLinks || [];
-    },
-  });
-
-  // Get the share link for a specific project
-  const getProjectShareLink = (projectId: string) => {
-    return shareLinks.find(
-      (link) => link.projectId === projectId && !link.isPortfolioLink
-    );
-  };
-
-  const generateProjectLinkMutation = useMutation({
-    mutationFn: async ({ projectId, days, privateNote }: { projectId: string; days: string; privateNote: string }) => {
-      // Delete existing project share link first
-      const existing = getProjectShareLink(projectId);
-      if (existing?._id) {
-        await apiClient.delete(`share-links/${existing._id}`);
-      }
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + parseInt(days));
-      return apiClient.post<ShareLink>('share-links', {
-        isPortfolioLink: false,
-        projectId,
-        expiresAt,
-        privateNote,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['share-links'] });
-      setShareNote('');
-      toast.success('Project share link generated');
-    },
-    onError: () => {
-      toast.error('Failed to generate link');
-    },
-  });
+  const [checkedProjects, setCheckedProjects] = useState<Set<string>>(new Set());
+  const [linkExpiry, setLinkExpiry] = useState('7');
+  const [linkNote, setLinkNote] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<{ url: string; accessCode: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
     queryKey: ['projects'],
@@ -164,6 +121,59 @@ export default function ProjectsPage() {
   };
 
   const isLoading = isProjectsLoading || isCategoriesLoading;
+
+  const toggleCheck = (id: string) => {
+    setCheckedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setGeneratedLink(null);
+  };
+
+  const toggleAll = () => {
+    if (checkedProjects.size === filteredProjects.length) {
+      setCheckedProjects(new Set());
+    } else {
+      setCheckedProjects(new Set(filteredProjects.map((p) => p._id!)));
+    }
+    setGeneratedLink(null);
+  };
+
+  const handleGenerateLink = async () => {
+    if (checkedProjects.size === 0) {
+      toast.error('Select at least one project');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + parseInt(linkExpiry));
+      const res = await apiClient.post<any>('share-links/', {
+        isPortfolioLink: false,
+        projectIds: Array.from(checkedProjects),
+        expiresAt: expiresAt.toISOString(),
+        privateNote: linkNote,
+      });
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+      setGeneratedLink({
+        url: `${baseUrl}/portfolio?token=${res.data.token}`,
+        accessCode: res.data.accessCode,
+      });
+      toast.success('Share link generated!');
+    } catch {
+      toast.error('Failed to generate link');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success('Copied to clipboard');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="p-8 space-y-6">
@@ -271,6 +281,12 @@ export default function ProjectsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={checkedProjects.size === filteredProjects.length && filteredProjects.length > 0}
+                          onCheckedChange={toggleAll}
+                        />
+                      </TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead className="hidden md:table-cell">Category</TableHead>
                       <TableHead className="hidden sm:table-cell">Status</TableHead>
@@ -287,6 +303,12 @@ export default function ProjectsPage() {
                         className="hover:bg-muted/50 transition-colors cursor-pointer"
                         onClick={() => setPreviewProject(project)}
                       >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={checkedProjects.has(project._id!)}
+                            onCheckedChange={() => toggleCheck(project._id!)}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium max-w-xs">
                           <div className="truncate">
                             {project.title}
@@ -360,6 +382,100 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Link Generator Panel */}
+      {checkedProjects.size > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="border-primary/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-primary" />
+                Generate Share Link
+              </CardTitle>
+              <CardDescription>
+                {checkedProjects.size} project{checkedProjects.size > 1 ? 's' : ''} selected
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {Array.from(checkedProjects).map((id) => {
+                  const p = projects.find((proj) => proj._id === id);
+                  return p ? (
+                    <Badge key={id} variant="secondary" className="gap-1">
+                      {p.title}
+                      <button onClick={() => toggleCheck(id)} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Expiration</Label>
+                  <select
+                    value={linkExpiry}
+                    onChange={(e) => setLinkExpiry(e.target.value)}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="1">1 day</option>
+                    <option value="3">3 days</option>
+                    <option value="7">7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Private Note</Label>
+                  <Input
+                    value={linkNote}
+                    onChange={(e) => setLinkNote(e.target.value)}
+                    placeholder="E.g., For client review"
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleGenerateLink} disabled={isGenerating} className="w-full sm:w-auto">
+                {isGenerating ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</>
+                ) : (
+                  <><Link2 className="w-4 h-4 mr-2" />Generate Link</>
+                )}
+              </Button>
+
+              {generatedLink && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-4 bg-muted rounded-lg space-y-3"
+                >
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Share URL</Label>
+                    <div className="flex gap-2">
+                      <Input value={generatedLink.url} readOnly className="text-sm" />
+                      <Button size="icon" variant="outline" onClick={() => copyToClipboard(generatedLink.url)}>
+                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Access Code</Label>
+                    <div className="flex gap-2">
+                      <Input value={generatedLink.accessCode} readOnly className="text-sm font-mono" />
+                      <Button size="icon" variant="outline" onClick={() => copyToClipboard(generatedLink.accessCode)}>
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Project Preview Dialog */}
       <Dialog open={!!previewProject} onOpenChange={(open) => !open && setPreviewProject(null)}>
@@ -496,105 +612,6 @@ export default function ProjectsPage() {
                     </div>
                   </div>
                 )}
-
-                {/* Share Link Generator */}
-                <div className="border-t border-border pt-6">
-                  <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <LinkIcon className="w-4 h-4" />
-                    Generate Share Link
-                  </h4>
-
-                  {/* Existing share link */}
-                  {(() => {
-                    const existingLink = getProjectShareLink(previewProject._id!);
-                    if (existingLink) {
-                      const expired = new Date(existingLink.expiresAt) < new Date();
-                      const expiresIn = Math.ceil(
-                        (new Date(existingLink.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                      );
-                      const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/portfolio?token=${existingLink.token}`;
-                      return (
-                        <div className={`mb-4 p-4 rounded-lg border ${expired ? 'border-destructive/30 bg-destructive/5' : 'border-primary/30 bg-primary/5'}`}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="font-mono text-xs bg-muted px-3 py-2 rounded flex-1 overflow-hidden text-ellipsis break-all border border-border">
-                              {existingLink.token}
-                            </p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                navigator.clipboard.writeText(shareUrl);
-                                toast.success('Link copied');
-                              }}
-                            >
-                              <Copy className="w-3.5 h-3.5 mr-1" />
-                              Copy
-                            </Button>
-                          </div>
-                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {expired ? (
-                                <span className="text-destructive font-medium">Expired</span>
-                              ) : (
-                                <span>Expires in <span className="font-medium text-foreground">{expiresIn}</span> days</span>
-                              )}
-                            </span>
-                            {existingLink.accessCode && (
-                              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                                <Shield className="w-3 h-3" />
-                                Code: <span className="font-mono font-bold">{existingLink.accessCode}</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm">Expiration</Label>
-                      <Select value={shareExpDays} onValueChange={setShareExpDays}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1 day</SelectItem>
-                          <SelectItem value="7">7 days</SelectItem>
-                          <SelectItem value="14">14 days</SelectItem>
-                          <SelectItem value="30">30 days</SelectItem>
-                          <SelectItem value="90">90 days</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm">Private Note (Optional)</Label>
-                      <Input
-                        placeholder="e.g. For client review"
-                        value={shareNote}
-                        onChange={(e) => setShareNote(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end mt-4">
-                    <Button
-                      onClick={() =>
-                        generateProjectLinkMutation.mutate({
-                          projectId: previewProject._id!,
-                          days: shareExpDays,
-                          privateNote: shareNote,
-                        })
-                      }
-                      disabled={generateProjectLinkMutation.isPending}
-                      className="min-w-[150px]"
-                    >
-                      {generateProjectLinkMutation.isPending ? 'Generating...' : 
-                        getProjectShareLink(previewProject._id!) ? 'Replace Link' : 'Generate Link'}
-                    </Button>
-                  </div>
-                </div>
               </div>
             </>
           )}
