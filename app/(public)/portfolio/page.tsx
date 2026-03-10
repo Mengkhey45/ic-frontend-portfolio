@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Project, Category } from '@/lib/types';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { AlertCircle, Lock, ArrowRight } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { ThemeToggle } from '@/components/admin/theme-toggle';
+import { PortfolioSearch } from '@/components/public/portfolio-search';
 
 function PortfolioContent() {
   const searchParams = useSearchParams();
@@ -19,6 +20,8 @@ function PortfolioContent() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSearchCategories, setSelectedSearchCategories] = useState<string[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,13 +80,37 @@ function PortfolioContent() {
     fetchPortfolio(accessCode);
   };
 
-  const filteredProjects =
-    selectedCategory === 'all'
-      ? projects
-      : projects.filter((p) => {
-          const categoryId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
-          return categoryId === selectedCategory;
-        });
+  const filteredProjects = useMemo(() => {
+    let result = projects;
+
+    // Filter by button category
+    if (selectedCategory !== 'all') {
+      result = result.filter((p) => {
+        const categoryId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
+        return categoryId === selectedCategory;
+      });
+    }
+
+    // Filter by search category tags
+    if (selectedSearchCategories.length > 0) {
+      result = result.filter((p) => {
+        const categoryId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
+        return selectedSearchCategories.includes(categoryId);
+      });
+    }
+
+    // Filter by text search
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.title.toLowerCase().includes(term) ||
+          p.description.toLowerCase().includes(term)
+      );
+    }
+
+    return result;
+  }, [projects, selectedCategory, selectedSearchCategories, searchTerm]);
 
   if (isLoading) {
     return (
@@ -189,25 +216,48 @@ function PortfolioContent() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="flex flex-wrap gap-2 justify-center"
+              className="space-y-4"
             >
-              <Button
-                variant={selectedCategory === 'all' ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory('all')}
-                className={selectedCategory === 'all' ? 'bg-primary hover:bg-primary/90' : ''}
-              >
-                All Projects
-              </Button>
-              {categories.map((cat) => (
+              {/* Smart Search */}
+              <PortfolioSearch
+                categories={categories}
+                searchTerm={searchTerm}
+                selectedCategories={selectedSearchCategories}
+                onSearchChange={setSearchTerm}
+                onCategoriesChange={(cats) => {
+                  setSelectedSearchCategories(cats);
+                  // Reset button filter when using search categories
+                  if (cats.length > 0) setSelectedCategory('all');
+                }}
+              />
+
+              {/* Category Buttons */}
+              <div className="flex flex-wrap gap-2 justify-center">
                 <Button
-                  key={cat._id}
-                  variant={selectedCategory === cat._id ? 'default' : 'outline'}
-                  onClick={() => setSelectedCategory(cat._id || '')}
-                  className={selectedCategory === cat._id ? 'bg-primary hover:bg-primary/90' : ''}
+                  variant={selectedCategory === 'all' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setSelectedCategory('all');
+                  }}
+                  className={selectedCategory === 'all' ? 'bg-primary hover:bg-primary/90' : ''}
                 >
-                  {cat.name}
+                  All Projects
                 </Button>
-              ))}
+                {categories.map((cat) => (
+                  <Button
+                    key={cat._id}
+                    variant={selectedCategory === cat._id ? 'default' : 'outline'}
+                    onClick={() => {
+                      setSelectedCategory(cat._id || '');
+                      // Clear search categories when using buttons
+                      setSelectedSearchCategories([]);
+                      setSearchTerm('');
+                    }}
+                    className={selectedCategory === cat._id ? 'bg-primary hover:bg-primary/90' : ''}
+                  >
+                    {cat.name}
+                  </Button>
+                ))}
+              </div>
             </motion.div>
           )}
         </div>

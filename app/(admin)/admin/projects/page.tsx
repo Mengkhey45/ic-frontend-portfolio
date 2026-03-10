@@ -5,15 +5,8 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Plus, Search, Eye, EyeOff, Edit, Trash2, Filter } from 'lucide-react';
+import { Plus, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
+import { SmartSearch } from '@/components/admin/smart-search';
 import { Project, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
@@ -39,7 +32,7 @@ import {
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
     queryKey: ['projects'],
@@ -60,6 +53,7 @@ export default function ProjectsPage() {
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
       const matchesSearch =
+        !searchTerm ||
         project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         project.description.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -67,11 +61,11 @@ export default function ProjectsPage() {
         ? (project.category as any)._id 
         : project.category;
         
-      const matchesCategory = selectedCategory === 'all' || projectCategoryId === selectedCategory;
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(projectCategoryId);
       
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory, projects]);
+  }, [searchTerm, selectedCategories, projects]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`projects/${id}`),
@@ -128,40 +122,19 @@ export default function ProjectsPage() {
         </Button>
       </motion.div>
 
-      {/* Search and Filter Bar */}
+      {/* Smart Search Bar */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-col md:flex-row gap-4"
       >
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search projects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-muted"
-          />
-        </div>
-        <div className="w-full md:w-64">
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="bg-muted">
-              <div className="flex items-center">
-                <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Filter by Category" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat._id} value={cat._id || ''}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <SmartSearch
+          categories={categories}
+          searchTerm={searchTerm}
+          selectedCategories={selectedCategories}
+          onSearchChange={setSearchTerm}
+          onCategoriesChange={setSelectedCategories}
+        />
       </motion.div>
 
       {/* Projects Table */}
@@ -183,21 +156,21 @@ export default function ProjectsPage() {
             ) : filteredProjects.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">
-                  {searchTerm || selectedCategory !== 'all' 
+                  {searchTerm || selectedCategories.length > 0 
                     ? 'No projects match your search or filter' 
                     : 'No projects yet'}
                 </p>
-                {!searchTerm && selectedCategory === 'all' && (
+                {!searchTerm && selectedCategories.length === 0 && (
                   <Button asChild variant="outline">
                     <Link href="/admin/projects/new">Create your first project</Link>
                   </Button>
                 )}
-                {(searchTerm || selectedCategory !== 'all') && (
+                {(searchTerm || selectedCategories.length > 0) && (
                   <Button 
                     variant="outline" 
                     onClick={() => {
                       setSearchTerm('');
-                      setSelectedCategory('all');
+                      setSelectedCategories([]);
                     }}
                   >
                     Clear filters
