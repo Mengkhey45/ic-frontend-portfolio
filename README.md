@@ -8,11 +8,12 @@ A modern, responsive portfolio management system frontend built with Next.js, Ta
 - **Project Management** - Create, edit, delete, and organize projects with rich media support
 - **Category Management** - Create and organize projects by category
 - **Portfolio Sharing** - Generate time-limited shareable links to send to clients
-- **Secure Authentication** - Email/Password authentication with JWT tokens (email restricted to authorized users)
-- **Public Portfolio View** - Modern, animated portfolio showcase with category filtering
+- **Secure Authentication** - Email/Password authentication with JWT tokens (users managed in MongoDB)
+- **Public Portfolio View** - Modern, animated portfolio showcase with category filtering and smart search
 - **Responsive Design** - Mobile-first responsive layout that works on all devices
 - **Modern Animations** - Smooth, professional animations powered by Framer Motion
-- **Dark/Light Theme** - Automatic theme detection with customizable colors
+- **Dark/Light Theme** - Multiple themes (Light, Dark, OLED Black, Forest Green)
+- **Smart Search** - Autocomplete search with category tag filtering
 
 ## Tech Stack
 
@@ -46,10 +47,12 @@ components/
 ├── admin/                      # Admin components
 │   ├── sidebar.tsx
 │   ├── header.tsx
-│   └── project-form.tsx
+│   ├── project-form.tsx
+│   └── smart-search.tsx       # Smart search with category autocomplete
 └── public/                     # Public components
     ├── project-card.tsx
-    └── project-modal.tsx
+    ├── project-modal.tsx
+    └── portfolio-search.tsx   # Public portfolio search
 
 lib/
 ├── api-client.ts              # Axios API client with interceptors
@@ -100,7 +103,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the a
 
 ### For Admin Users
 
-1. **Login**: Go to `/admin/login` and use the authorized email `mengkheykhorn@gmail.com`
+1. **Login**: Go to `/admin/login` and enter your admin credentials (managed in MongoDB)
 2. **Dashboard**: View statistics and quick actions
 3. **Categories**: Create project categories for filtering
 4. **Projects**: Add, edit, delete, or hide projects
@@ -156,10 +159,12 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ## Authentication
 
-- **Admin Email**: `mengkheykhorn@gmail.com` (hardcoded, only this email can access admin)
-- **Password**: Managed by backend
+- **Admin Users**: Managed in MongoDB `users` collection
+- **Password**: Stored as bcrypt hash in MongoDB
 - **Token Storage**: JWT token stored in localStorage
-- **Token Expiry**: Handled by backend
+- **Token Expiry**: 7 days (handled by backend)
+
+To add a new admin user, insert a document into the `users` collection in MongoDB Atlas. See backend README for details.
 
 ## Customization
 
@@ -219,7 +224,8 @@ pnpm start
 - Verify CORS settings on backend
 
 ### Login Not Working
-- Verify email is `mengkheykhorn@gmail.com`
+- Check that your user exists in MongoDB `users` collection
+- Verify password is correctly bcrypt-hashed
 - Check backend authentication endpoint
 - Clear localStorage and try again
 
