@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
+import { Plus, Eye, EyeOff, Edit, Trash2, Search } from 'lucide-react';
 import { SmartSearch } from '@/components/admin/smart-search';
 import { Project, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
@@ -28,11 +28,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [previewProject, setPreviewProject] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
     queryKey: ['projects'],
@@ -122,6 +131,32 @@ export default function ProjectsPage() {
         </Button>
       </motion.div>
 
+      {/* Category Filter Bar */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button
+          variant={selectedCategories.length === 0 ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSelectedCategories([])}
+        >
+          All
+        </Button>
+        {categories.map((cat) => (
+          <Button
+            key={cat._id}
+            variant={selectedCategories.includes(cat._id!) ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setSelectedCategories(
+                selectedCategories.includes(cat._id!)
+                  ? selectedCategories.filter((id) => id !== cat._id!)
+                  : [cat._id!]
+              );
+            }}
+          >
+            {cat.name}
+          </Button>
+        ))}
+      </div>
       {/* Smart Search Bar */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -198,7 +233,13 @@ export default function ProjectsPage() {
                         className="hover:bg-muted/50 transition-colors"
                       >
                         <TableCell className="font-medium max-w-xs">
-                          <div className="truncate">{project.title}</div>
+                          <div
+                            className="truncate cursor-pointer hover:text-primary transition-colors"
+                            onClick={() => setPreviewProject(project)}
+                            title="Click to preview"
+                          >
+                            {project.title}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
                           {typeof project.category === 'object' ? (project.category as any).name : project.category}
@@ -216,6 +257,14 @@ export default function ProjectsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPreviewProject(project)}
+                              title="Preview"
+                            >
+                              <Search className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -268,6 +317,147 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Project Preview Dialog */}
+      <Dialog open={!!previewProject} onOpenChange={(open) => !open && setPreviewProject(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          {previewProject && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">{previewProject.title}</DialogTitle>
+                <div className="flex items-center gap-2 pt-1">
+                  <Badge variant="secondary">
+                    {typeof previewProject.category === 'object'
+                      ? (previewProject.category as any).name
+                      : previewProject.category}
+                  </Badge>
+                  <Badge variant={previewProject.isHidden ? 'outline' : 'default'}>
+                    {previewProject.isHidden ? 'Hidden' : 'Visible'}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6 pt-2">
+                {/* Thumbnail */}
+                {previewProject.thumbnail && (
+                  <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                    <Image
+                      src={previewProject.thumbnail}
+                      alt={previewProject.title}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+
+                {/* Description */}
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">Description</h4>
+                  <p className="text-foreground leading-relaxed whitespace-pre-line">
+                    {previewProject.description}
+                  </p>
+                </div>
+
+                {/* Label */}
+                {previewProject.label && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Private Note</h4>
+                    <p className="text-sm text-muted-foreground italic">{previewProject.label}</p>
+                  </div>
+                )}
+
+                {/* Image Gallery */}
+                {previewProject.media?.filter((m) => m.type === 'image').length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Images</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {previewProject.media
+                        .filter((m) => m.type === 'image')
+                        .map((media, idx) => (
+                          <div key={idx} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                            <Image
+                              src={media.url}
+                              alt={media.title || `Image ${idx + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Videos */}
+                {previewProject.media?.filter((m) => m.type === 'video').length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Videos</h4>
+                    <div className="space-y-2">
+                      {previewProject.media
+                        .filter((m) => m.type === 'video')
+                        .map((video, idx) => (
+                          <a
+                            key={idx}
+                            href={video.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                          >
+                            <Eye className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-medium">{video.title || `Video ${idx + 1}`}</span>
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* PDFs */}
+                {previewProject.media?.filter((m) => m.type === 'pdf').length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Documents</h4>
+                    <div className="space-y-2">
+                      {previewProject.media
+                        .filter((m) => m.type === 'pdf')
+                        .map((pdf, idx) => (
+                          <a
+                            key={idx}
+                            href={pdf.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                          >
+                            <Eye className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-medium">{pdf.title || `Document ${idx + 1}`}</span>
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Links */}
+                {previewProject.links && previewProject.links.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Links</h4>
+                    <div className="space-y-2">
+                      {previewProject.links.map((link, idx) => (
+                        <a
+                          key={idx}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors text-sm text-primary truncate"
+                        >
+                          <Eye className="w-4 h-4 flex-shrink-0" />
+                          {link}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
