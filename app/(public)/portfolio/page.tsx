@@ -86,7 +86,7 @@ function PortfolioContent() {
     // Filter by button category
     if (selectedCategory !== 'all') {
       result = result.filter((p) => {
-        const categoryId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
+        const categoryId = typeof p.category === 'object' && p.category ? (p.category as any)._id : p.category;
         return categoryId === selectedCategory;
       });
     }
@@ -94,7 +94,7 @@ function PortfolioContent() {
     // Filter by search category tags
     if (selectedSearchCategories.length > 0) {
       result = result.filter((p) => {
-        const categoryId = typeof p.category === 'object' ? (p.category as any)._id : p.category;
+        const categoryId = typeof p.category === 'object' && p.category ? (p.category as any)._id : p.category;
         return selectedSearchCategories.includes(categoryId);
       });
     }

@@ -27,7 +27,8 @@ export interface Project {
 
 export interface ShareLink {
   _id?: string;
-  projectId?: string;
+  projectId?: string | { _id: string; title: string; category?: { _id: string; name: string } };
+  projectIds?: Array<string | { _id: string; title: string; category?: { _id: string; name: string } }>;
   token: string;
   expiresAt: Date;
   isPortfolioLink: boolean; // true for full portfolio, false for single project

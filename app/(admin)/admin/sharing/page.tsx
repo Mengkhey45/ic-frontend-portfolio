@@ -309,12 +309,22 @@ export default function SharingPage() {
 
                   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/portfolio?token=${link.token}`;
 
-                  // Find category names for display
-                  const allowedCatNames = link.allowedCategories && link.allowedCategories.length > 0
-                    ? categories
+                  // Find display label for link scope
+                  let scopeLabels: string[];
+                  const populatedProjects = (link.projectIds || []).filter((p): p is { _id: string; title: string; category?: { _id: string; name: string } } => typeof p === 'object' && p !== null);
+                  if (populatedProjects.length > 0) {
+                    // Show unique category names from selected projects
+                    const catNames = [...new Set(populatedProjects.map(p => p.category?.name).filter(Boolean))] as string[];
+                    scopeLabels = catNames.length > 0 ? catNames : populatedProjects.map(p => p.title);
+                  } else if (link.allowedCategories && link.allowedCategories.length > 0) {
+                    scopeLabels = categories
                         .filter(cat => link.allowedCategories?.includes(cat._id!))
-                        .map(cat => cat.name)
-                    : ['All Categories'];
+                        .map(cat => cat.name);
+                  } else if (link.isPortfolioLink) {
+                    scopeLabels = ['Full Portfolio'];
+                  } else {
+                    scopeLabels = ['Selected Projects'];
+                  }
 
                   return (
                     <motion.div key={link._id} variants={item}>
@@ -347,9 +357,9 @@ export default function SharingPage() {
                                   <div className="flex items-center gap-2 text-xs text-primary bg-primary/5 px-3 py-1.5 rounded-full border border-primary/20">
                                     <Filter className="w-3 h-3" />
                                     <span>
-                                      {allowedCatNames.length > 3 
-                                        ? `${allowedCatNames.slice(0, 3).join(', ')} +${allowedCatNames.length - 3} more` 
-                                        : allowedCatNames.join(', ')}
+                                      {scopeLabels.length > 3 
+                                        ? `${scopeLabels.slice(0, 3).join(', ')} +${scopeLabels.length - 3} more` 
+                                        : scopeLabels.join(', ')}
                                     </span>
                                   </div>
                                 </div>
