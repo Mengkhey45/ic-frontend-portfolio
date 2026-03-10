@@ -5,9 +5,9 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, EyeOff, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Eye, EyeOff, Edit, Trash2, Copy, Calendar, Shield, Link as LinkIcon } from 'lucide-react';
 import { SmartSearch } from '@/components/admin/smart-search';
-import { Project, Category } from '@/lib/types';
+import { Project, Category, ShareLink } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -35,6 +35,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import Image from 'next/image';
 
 export default function ProjectsPage() {
@@ -42,6 +51,50 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [previewProject, setPreviewProject] = useState<Project | null>(null);
+  const [shareExpDays, setShareExpDays] = useState('7');
+  const [shareNote, setShareNote] = useState('');
+
+  // Fetch share links for projects
+  const { data: shareLinks = [] } = useQuery({
+    queryKey: ['share-links'],
+    queryFn: async () => {
+      const response = await apiClient.get<{ shareLinks: ShareLink[] }>('share-links');
+      return response.data.shareLinks || [];
+    },
+  });
+
+  // Get the share link for a specific project
+  const getProjectShareLink = (projectId: string) => {
+    return shareLinks.find(
+      (link) => link.projectId === projectId && !link.isPortfolioLink
+    );
+  };
+
+  const generateProjectLinkMutation = useMutation({
+    mutationFn: async ({ projectId, days, privateNote }: { projectId: string; days: string; privateNote: string }) => {
+      // Delete existing project share link first
+      const existing = getProjectShareLink(projectId);
+      if (existing?._id) {
+        await apiClient.delete(`share-links/${existing._id}`);
+      }
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + parseInt(days));
+      return apiClient.post<ShareLink>('share-links', {
+        isPortfolioLink: false,
+        projectId,
+        expiresAt,
+        privateNote,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['share-links'] });
+      setShareNote('');
+      toast.success('Project share link generated');
+    },
+    onError: () => {
+      toast.error('Failed to generate link');
+    },
+  });
 
   const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
     queryKey: ['projects'],
@@ -66,7 +119,7 @@ export default function ProjectsPage() {
         project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         project.description.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const projectCategoryId = typeof project.category === 'object' 
+      const projectCategoryId = typeof project.category === 'object' && project.category
         ? (project.category as any)._id 
         : project.category;
         
@@ -231,19 +284,16 @@ export default function ProjectsPage() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="hover:bg-muted/50 transition-colors"
+                        className="hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => setPreviewProject(project)}
                       >
                         <TableCell className="font-medium max-w-xs">
-                          <div
-                            className="truncate cursor-pointer hover:text-primary transition-colors"
-                            onClick={() => setPreviewProject(project)}
-                            title="Click to preview"
-                          >
+                          <div className="truncate">
                             {project.title}
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {typeof project.category === 'object' ? (project.category as any).name : project.category}
+                          {typeof project.category === 'object' && project.category ? (project.category as any).name : (project.category || 'Uncategorized')}
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
                           <span
@@ -257,15 +307,7 @@ export default function ProjectsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setPreviewProject(project)}
-                              title="Preview"
-                            >
-                              <Search className="w-4 h-4" />
-                            </Button>
+                          <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -328,9 +370,9 @@ export default function ProjectsPage() {
                 <DialogTitle className="text-xl">{previewProject.title}</DialogTitle>
                 <div className="flex items-center gap-2 pt-1">
                   <Badge variant="secondary">
-                    {typeof previewProject.category === 'object'
+                    {typeof previewProject.category === 'object' && previewProject.category
                       ? (previewProject.category as any).name
-                      : previewProject.category}
+                      : (previewProject.category || 'Uncategorized')}
                   </Badge>
                   <Badge variant={previewProject.isHidden ? 'outline' : 'default'}>
                     {previewProject.isHidden ? 'Hidden' : 'Visible'}
@@ -454,6 +496,105 @@ export default function ProjectsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Share Link Generator */}
+                <div className="border-t border-border pt-6">
+                  <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4" />
+                    Generate Share Link
+                  </h4>
+
+                  {/* Existing share link */}
+                  {(() => {
+                    const existingLink = getProjectShareLink(previewProject._id!);
+                    if (existingLink) {
+                      const expired = new Date(existingLink.expiresAt) < new Date();
+                      const expiresIn = Math.ceil(
+                        (new Date(existingLink.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                      );
+                      const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/portfolio?token=${existingLink.token}`;
+                      return (
+                        <div className={`mb-4 p-4 rounded-lg border ${expired ? 'border-destructive/30 bg-destructive/5' : 'border-primary/30 bg-primary/5'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-mono text-xs bg-muted px-3 py-2 rounded flex-1 overflow-hidden text-ellipsis break-all border border-border">
+                              {existingLink.token}
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(shareUrl);
+                                toast.success('Link copied');
+                              }}
+                            >
+                              <Copy className="w-3.5 h-3.5 mr-1" />
+                              Copy
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {expired ? (
+                                <span className="text-destructive font-medium">Expired</span>
+                              ) : (
+                                <span>Expires in <span className="font-medium text-foreground">{expiresIn}</span> days</span>
+                              )}
+                            </span>
+                            {existingLink.accessCode && (
+                              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                <Shield className="w-3 h-3" />
+                                Code: <span className="font-mono font-bold">{existingLink.accessCode}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Expiration</Label>
+                      <Select value={shareExpDays} onValueChange={setShareExpDays}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 day</SelectItem>
+                          <SelectItem value="7">7 days</SelectItem>
+                          <SelectItem value="14">14 days</SelectItem>
+                          <SelectItem value="30">30 days</SelectItem>
+                          <SelectItem value="90">90 days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Private Note (Optional)</Label>
+                      <Input
+                        placeholder="e.g. For client review"
+                        value={shareNote}
+                        onChange={(e) => setShareNote(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-4">
+                    <Button
+                      onClick={() =>
+                        generateProjectLinkMutation.mutate({
+                          projectId: previewProject._id!,
+                          days: shareExpDays,
+                          privateNote: shareNote,
+                        })
+                      }
+                      disabled={generateProjectLinkMutation.isPending}
+                      className="min-w-[150px]"
+                    >
+                      {generateProjectLinkMutation.isPending ? 'Generating...' : 
+                        getProjectShareLink(previewProject._id!) ? 'Replace Link' : 'Generate Link'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </>
           )}
