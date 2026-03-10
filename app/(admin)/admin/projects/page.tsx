@@ -131,12 +131,18 @@ export default function ProjectsPage() {
     setGeneratedLink(null);
   };
 
+  const allFilteredChecked = filteredProjects.length > 0 && filteredProjects.every((p) => checkedProjects.has(p._id!));
+
   const toggleAll = () => {
-    if (checkedProjects.size === filteredProjects.length) {
-      setCheckedProjects(new Set());
-    } else {
-      setCheckedProjects(new Set(filteredProjects.map((p) => p._id!)));
-    }
+    setCheckedProjects((prev) => {
+      const next = new Set(prev);
+      if (allFilteredChecked) {
+        filteredProjects.forEach((p) => next.delete(p._id!));
+      } else {
+        filteredProjects.forEach((p) => next.add(p._id!));
+      }
+      return next;
+    });
     setGeneratedLink(null);
   };
 
@@ -283,7 +289,7 @@ export default function ProjectsPage() {
                     <TableRow className="border-border hover:bg-transparent">
                       <TableHead className="w-10">
                         <Checkbox
-                          checked={checkedProjects.size === filteredProjects.length && filteredProjects.length > 0}
+                          checked={allFilteredChecked}
                           onCheckedChange={toggleAll}
                         />
                       </TableHead>
