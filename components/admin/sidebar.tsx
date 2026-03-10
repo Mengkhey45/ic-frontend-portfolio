@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FolderOpen, Tag, Share2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, Tag, Share2, X, ChevronLeft, ChevronRight, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ const navItems = [
   { href: '/admin/projects', icon: FolderOpen, label: 'Projects' },
   { href: '/admin/categories', icon: Tag, label: 'Categories' },
   { href: '/admin/sharing', icon: Share2, label: 'Share Portfolio' },
+  { href: '/admin/profile', icon: UserCircle, label: 'Profile' },
 ];
 
 interface AdminSidebarProps {

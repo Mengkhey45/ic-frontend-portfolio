@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogOut, Settings, User, Menu } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { ThemeToggle } from './theme-toggle';
@@ -19,7 +20,7 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const router = useRouter();
-  const [user, setUser] = useState<{ email: string; name: string } | null>(null);
+  const [user, setUser] = useState<{ email: string; name: string; profileImage?: string } | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -68,9 +69,12 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-primary" />
-              </div>
+              <Avatar className="w-8 h-8">
+                <AvatarImage src={user?.profileImage || undefined} alt="Profile" />
+                <AvatarFallback className="bg-primary/20">
+                  <User className="w-4 h-4 text-primary" />
+                </AvatarFallback>
+              </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -79,9 +83,9 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
               <p className="text-xs text-muted-foreground">{user?.name || 'Portfolio Admin'}</p>
             </div>
             <hr className="my-1" />
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem className="cursor-pointer" onClick={() => router.push('/admin/profile')}>
               <Settings className="w-4 h-4 mr-2" />
-              Settings
+              Profile Settings
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
               <LogOut className="w-4 h-4 mr-2" />
