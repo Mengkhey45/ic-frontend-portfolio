@@ -503,7 +503,7 @@ export default function SharingPage() {
                                     <Shield className="w-3.5 h-3.5" />
                                     <span>Access Code: <span className="font-mono font-bold tracking-wider">{link.accessCode}</span></span>
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(link.accessCode); toast.success('Access code copied'); }}
+                                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(link.accessCode!); toast.success('Access code copied'); }}
                                       className="p-0.5 rounded hover:bg-muted transition-colors"
                                       title="Copy access code"
                                     >
