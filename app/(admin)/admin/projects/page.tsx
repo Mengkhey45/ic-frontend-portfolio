@@ -167,6 +167,7 @@ export default function ProjectsPage() {
         accessCode: res.data.accessCode,
       });
       toast.success('Share link generated!');
+      setCheckedProjects(new Set());
       queryClient.invalidateQueries({ queryKey: ['share-links'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     } catch {
@@ -386,7 +387,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Link Generator Panel */}
-      {checkedProjects.size > 0 && (
+      {(checkedProjects.size > 0 || generatedLink) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
