@@ -203,11 +203,7 @@ export default function ProjectsPage() {
       </motion.div>
 
       {/* Smart Search Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
+      <div>
         <SmartSearch
           categories={categories}
           searchTerm={searchTerm}
@@ -215,7 +211,7 @@ export default function ProjectsPage() {
           onSearchChange={setSearchTerm}
           onCategoriesChange={setSelectedCategories}
         />
-      </motion.div>
+      </div>
 
       {/* Category Filter Bar */}
       <div className="flex flex-wrap gap-2">
@@ -245,11 +241,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Projects Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
+      <div>
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle>All Projects</CardTitle>
@@ -308,7 +300,7 @@ export default function ProjectsPage() {
                         key={project._id}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
+                        transition={{ delay: Math.min(index * 0.03, 0.3) }}
                         className="hover:bg-muted/50 transition-colors cursor-pointer"
                         onClick={() => setPreviewProject(project)}
                       >
@@ -391,7 +383,7 @@ export default function ProjectsPage() {
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       {/* Link Generator Panel */}
       {checkedProjects.size > 0 && (
