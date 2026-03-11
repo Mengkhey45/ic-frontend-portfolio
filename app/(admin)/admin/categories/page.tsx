@@ -32,7 +32,9 @@ export default function CategoriesPage() {
   const { data: categories = [], isLoading: isFetching } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const response = await apiClient.get<{ categories: Category[] }>('categories');
+      const response = await apiClient.get<{ categories: Category[] }>('categories', {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       return response.data.categories || [];
     },
   });
