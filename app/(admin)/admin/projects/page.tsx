@@ -167,6 +167,8 @@ export default function ProjectsPage() {
         accessCode: res.data.accessCode,
       });
       toast.success('Share link generated!');
+      queryClient.invalidateQueries({ queryKey: ['share-links'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     } catch {
       toast.error('Failed to generate link');
     } finally {
