@@ -75,6 +75,7 @@ export default function CategoriesPage() {
       toast.success('Category deleted successfully');
     },
     onError: (err: any) => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setError(err.response?.data?.message || err.message);
       toast.error('Failed to delete category');
     },
