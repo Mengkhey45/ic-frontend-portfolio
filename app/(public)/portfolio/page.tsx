@@ -183,9 +183,6 @@ function PortfolioContent() {
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2">Oops!</h1>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Button asChild variant="outline">
-            <a href="/">Go Home</a>
-          </Button>
         </div>
       </div>
     );
