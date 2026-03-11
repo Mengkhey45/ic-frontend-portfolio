@@ -38,11 +38,9 @@ function PortfolioContent() {
 
     try {
       setIsVerifying(true);
-      // Add timestamp to prevent caching issues
-      const timestamp = new Date().getTime();
       const url = code 
-        ? `portfolio?token=${token}&accessCode=${code}&t=${timestamp}` 
-        : `portfolio?token=${token}&t=${timestamp}`;
+        ? `portfolio?token=${token}&accessCode=${code}` 
+        : `portfolio?token=${token}`;
       
       const response = await apiClient.get<{ projects: Project[], categories: Category[] }>(url);
       setProjects(response.data.projects || []);
@@ -284,11 +282,12 @@ function PortfolioContent() {
                 key={project._id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: Math.min(index * 0.05, 0.3) }}
               >
                 <ProjectCard
                   project={project}
                   onClick={() => setSelectedProject(project)}
+                  priority={index < 3}
                 />
               </motion.div>
             ))}

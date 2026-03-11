@@ -9,9 +9,10 @@ import Image from 'next/image';
 interface ProjectCardProps {
   project: Project;
   onClick: () => void;
+  priority?: boolean;
 }
 
-export default function ProjectCard({ project, onClick }: ProjectCardProps) {
+export default function ProjectCard({ project, onClick, priority = false }: ProjectCardProps) {
   return (
     <motion.div
       whileHover={{ y: -8 }}
@@ -36,6 +37,8 @@ export default function ProjectCard({ project, onClick }: ProjectCardProps) {
               src={project.thumbnail}
               alt={project.title}
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              priority={priority}
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           </div>
