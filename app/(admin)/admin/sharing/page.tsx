@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Copy, Trash2, Plus, Calendar, Link as LinkIcon, Shield, StickyNote, Filter, CheckSquare, Square } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Copy, Trash2, Plus, Calendar, Link as LinkIcon, Shield, StickyNote, Filter, CheckSquare, Square, LinkIcon as Link2Icon, Clock, AlertCircle } from 'lucide-react';
 import { ShareLink, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
 import { toast } from 'sonner';
@@ -36,6 +37,7 @@ export default function SharingPage() {
   const [privateNote, setPrivateNote] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [linkFilter, setLinkFilter] = useState<'all' | 'active' | 'expired'>('all');
 
   // Fetch share links
   const { data: shareLinks = [], isLoading: isLinksLoading } = useQuery({
@@ -121,6 +123,29 @@ export default function SharingPage() {
 
   const isExpired = (expiresAt: Date) => new Date(expiresAt) < new Date();
 
+  const activeLinks = useMemo(() => shareLinks.filter(l => !isExpired(l.expiresAt)), [shareLinks]);
+  const expiredLinks = useMemo(() => shareLinks.filter(l => isExpired(l.expiresAt)), [shareLinks]);
+
+  const filteredLinks = useMemo(() => {
+    if (linkFilter === 'active') return activeLinks;
+    if (linkFilter === 'expired') return expiredLinks;
+    return shareLinks;
+  }, [shareLinks, activeLinks, expiredLinks, linkFilter]);
+
+  const getTimeAgo = (date: Date) => {
+    const now = new Date();
+    const d = new Date(date);
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'yesterday';
+    return `${diffDays} days ago`;
+  };
+
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -149,6 +174,55 @@ export default function SharingPage() {
       </motion.div>
 
       {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card className="border-primary/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Links</p>
+                  <p className="text-2xl font-bold text-foreground">{shareLinks.length}</p>
+                </div>
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Link2Icon className="w-5 h-5 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <Card className="border-green-500/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Active</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{activeLinks.length}</p>
+                </div>
+                <div className="p-3 bg-green-500/10 rounded-full">
+                  <Clock className="w-5 h-5 text-green-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card className="border-red-500/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Expired</p>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">{expiredLinks.length}</p>
+                </div>
+                <div className="p-3 bg-red-500/10 rounded-full">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
 
       {/* Generate New Link */}
       <motion.div
@@ -283,10 +357,30 @@ export default function SharingPage() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Active Share Links</CardTitle>
-            <CardDescription>
-              {shareLinks.length} {shareLinks.length === 1 ? 'link' : 'links'} created
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Share Links</CardTitle>
+                <CardDescription>
+                  {filteredLinks.length} {filteredLinks.length === 1 ? 'link' : 'links'}{linkFilter !== 'all' ? ` (${linkFilter})` : ''}
+                </CardDescription>
+              </div>
+              <div className="flex gap-1 bg-muted p-1 rounded-lg">
+                {(['all', 'active', 'expired'] as const).map((tab) => (
+                  <Button
+                    key={tab}
+                    variant={linkFilter === tab ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setLinkFilter(tab)}
+                    className={`text-xs capitalize ${linkFilter === tab ? '' : 'hover:bg-background'}`}
+                  >
+                    {tab}
+                    <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                      {tab === 'all' ? shareLinks.length : tab === 'active' ? activeLinks.length : expiredLinks.length}
+                    </Badge>
+                  </Button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {isFetching ? (
@@ -300,7 +394,7 @@ export default function SharingPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {shareLinks.map((link, index) => {
+                {filteredLinks.map((link, index) => {
                   const expired = isExpired(link.expiresAt);
                   const expiresIn = Math.ceil(
                     (new Date(link.expiresAt).getTime() - new Date().getTime()) /
@@ -398,9 +492,9 @@ export default function SharingPage() {
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                   <Calendar className="w-3.5 h-3.5" />
                                   {expired ? (
-                                    <span className="text-destructive font-medium">Expired</span>
+                                    <span className="text-destructive font-medium">Expired {getTimeAgo(link.expiresAt)}</span>
                                   ) : (
-                                    <span>Expires in <span className="font-medium text-foreground">{expiresIn}</span> days</span>
+                                    <span>Expires in <span className="font-medium text-foreground">{expiresIn}</span> {expiresIn === 1 ? 'day' : 'days'}</span>
                                   )}
                                 </div>
                                 {link.accessCode && (
