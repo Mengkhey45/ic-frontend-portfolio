@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ChevronLeft, ChevronRight, X, EyeOff, Edit, Trash2, Link2, Copy, Check, Loader2, Play, FileIcon, ExternalLink } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, EyeOff, Eye, Edit, Trash2, Link2, Copy, Check, Loader2, Play, FileIcon, ExternalLink } from 'lucide-react';
 import { SmartSearch } from '@/components/admin/smart-search';
 import { Project, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
@@ -344,7 +344,7 @@ export default function ProjectsPage() {
                               {project.isHidden ? (
                                 <EyeOff className="w-4 h-4" />
                               ) : (
-                                <X className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               )}
                             </Button>
                             <Button asChild variant="ghost" size="sm">
