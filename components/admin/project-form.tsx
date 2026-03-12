@@ -32,7 +32,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
   const [draggingField, setDraggingField] = useState<string | null>(null);
 
   const fileInputRefs = {
@@ -73,19 +73,25 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
   }, []);
 
   const handleFileSelect = (files: FileList | null, fileType: string) => {
-    if (files?.[0]) {
-      setSelectedFiles(prev => ({
-        ...prev,
-        [fileType]: files[0],
-      }));
-      toast.success(`${files[0].name} selected`);
+    if (files && files.length > 0) {
+      setSelectedFiles(prev => {
+        const existing = prev[fileType] || [];
+        // Filter out duplicates by name (optional, can be improved)
+        const newFiles = Array.from(files).filter(f => !existing.some(e => e.name === f.name && e.size === f.size));
+        const merged = [...existing, ...newFiles];
+        return {
+          ...prev,
+          [fileType]: merged,
+        };
+      });
+      toast.success(`${files.length} file(s) added`);
     }
   };
 
   const removeFile = (fileType: string) => {
     setSelectedFiles(prev => ({
       ...prev,
-      [fileType]: null,
+      [fileType]: [],
     }));
   };
 
@@ -121,8 +127,8 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
       });
 
       Object.entries(selectedFiles).forEach(([key, file]) => {
-        if (file) {
-          formData.append(key, file);
+        if (file && file.length > 0) {
+          file.forEach((f) => formData.append(key, f));
         }
       });
 
@@ -234,8 +240,8 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
               {[
                 { id: 'thumbnail', label: 'Thumbnail (Single)' },
                 { id: 'images', label: 'Images (Multiple)' },
-                { id: 'video', label: 'Video' },
-                { id: 'pdf', label: 'PDF' }
+                { id: 'video', label: 'Videos (Multiple)' },
+                { id: 'pdf', label: 'PDFs (Multiple)' }
               ].map((type) => (
                 <div key={type.id} className="space-y-2">
                   <Label>{type.label}</Label>
@@ -260,11 +266,11 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                         type.id === 'pdf' ? 'application/pdf' :
                         'image/*'
                       }
-                      multiple={type.id === 'images'}
+                      multiple={type.id !== 'thumbnail'}
                     />
                     
                     <AnimatePresence mode="wait">
-                      {selectedFiles[type.id] ? (
+                      {selectedFiles[type.id] && selectedFiles[type.id].length > 0 ? (
                         <motion.div
                           key="selected"
                           initial={{ opacity: 0, scale: 0.9 }}
@@ -275,9 +281,11 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                           <div className="p-3 rounded-full bg-primary/10 text-primary mb-3">
                             <FileIcon className="w-8 h-8" />
                           </div>
-                          <p className="text-sm font-medium text-foreground truncate max-w-full px-4">
-                            {selectedFiles[type.id]!.name}
-                          </p>
+                          <ul className="text-sm font-medium text-foreground truncate max-w-full px-4">
+                            {selectedFiles[type.id].map((file, idx) => (
+                              <li key={idx}>{file.name}</li>
+                            ))}
+                          </ul>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -287,7 +295,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                             className="mt-4 flex items-center text-xs text-destructive hover:text-destructive/80 font-medium"
                           >
                             <X className="w-3 h-3 mr-1" />
-                            Remove file
+                            Remove all files
                           </button>
                         </motion.div>
                       ) : (
