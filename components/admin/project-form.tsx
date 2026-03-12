@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import imageCompression from 'browser-image-compression';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -29,11 +31,26 @@ interface ProjectFormProps {
 
 export default function ProjectForm({ project, isEditing = false }: ProjectFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
+    // Track existing media files for edit mode
+    const [existingMedia, setExistingMedia] = useState<Record<string, Array<{ url: string, title: string, type: string }>>>({});
   const [draggingField, setDraggingField] = useState<string | null>(null);
+
+  // Remove a specific file from a fileType
+  const removeSingleFile = (fileType: string, index: number) => {
+    setSelectedFiles(prev => {
+      const files = prev[fileType] || [];
+      const newFiles = files.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        [fileType]: newFiles,
+      };
+    });
+  };
 
   const fileInputRefs = {
     thumbnail: useRef<HTMLInputElement>(null),
@@ -70,21 +87,58 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
     };
 
     fetchCategories();
-  }, []);
+
+    // Populate existing media for edit mode
+    if (isEditing && project?.media) {
+      const mediaMap: Record<string, Array<{ url: string, title: string, type: string }>> = {
+        thumbnail: [],
+        images: [],
+        video: [],
+        pdf: [],
+      };
+      project.media.forEach((item: any) => {
+        if (item.type === 'image') mediaMap.images.push(item);
+        else if (item.type === 'video') mediaMap.video.push(item);
+        else if (item.type === 'pdf') mediaMap.pdf.push(item);
+      });
+      if (project.thumbnail) mediaMap.thumbnail.push({ url: project.thumbnail, title: 'Thumbnail', type: 'thumbnail' });
+      setExistingMedia(mediaMap);
+    }
+  }, [isEditing, project]);
 
   const handleFileSelect = (files: FileList | null, fileType: string) => {
     if (files && files.length > 0) {
-      setSelectedFiles(prev => {
-        const existing = prev[fileType] || [];
-        // Filter out duplicates by name (optional, can be improved)
-        const newFiles = Array.from(files).filter(f => !existing.some(e => e.name === f.name && e.size === f.size));
-        const merged = [...existing, ...newFiles];
-        return {
-          ...prev,
-          [fileType]: merged,
-        };
-      });
-      toast.success(`${files.length} file(s) added`);
+      (async () => {
+        let newFiles: File[] = [];
+        if (fileType === 'images' || fileType === 'thumbnail') {
+          // Compress images
+          for (const file of Array.from(files)) {
+            if (file.type.startsWith('image/')) {
+              const compressed = await imageCompression(file, {
+                maxSizeMB: 1,
+                maxWidthOrHeight: 1920,
+                useWebWorker: true,
+              });
+              newFiles.push(compressed);
+            } else {
+              newFiles.push(file);
+            }
+          }
+        } else {
+          newFiles = Array.from(files);
+        }
+        setSelectedFiles(prev => {
+          const existing = prev[fileType] || [];
+          // Filter out duplicates by name (optional, can be improved)
+          const filtered = newFiles.filter(f => !existing.some(e => e.name === f.name && e.size === f.size));
+          const merged = [...existing, ...filtered];
+          return {
+            ...prev,
+            [fileType]: merged,
+          };
+        });
+        toast.success(`${newFiles.length} file(s) added`);
+      })();
     }
   };
 
@@ -121,7 +175,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
       if (data.category) formData.append('category', data.category);
       formData.append('label', data.label);
       formData.append('isHidden', String(data.isHidden));
-      
+
       data.links.forEach((link: string) => {
         if (link) formData.append('links', link);
       });
@@ -132,7 +186,14 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
         }
       });
 
+      // Send updated existingMedia for edit mode
       if (isEditing) {
+        formData.append('existingMedia', JSON.stringify([
+          ...existingMedia.thumbnail,
+          ...existingMedia.images,
+          ...existingMedia.video,
+          ...existingMedia.pdf,
+        ]));
         await apiClient.put(`projects/${project?._id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -144,6 +205,8 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
         toast.success('Project created successfully');
       }
 
+      // Invalidate projects cache so new/updated project appears immediately
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       router.push('/admin/projects');
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'An error occurred');
@@ -157,8 +220,25 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-6 relative"
     >
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="flex flex-col items-center gap-2 bg-background/90 rounded-xl p-8 shadow-lg">
+            <svg
+              className="animate-spin h-8 w-8"
+              style={{ color: 'var(--theme-primary-color, #6366f1)' }}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            <span className="text-lg font-semibold" style={{ color: 'var(--theme-primary-color, #6366f1)' }}>Uploading...</span>
+          </div>
+        </div>
+      )}
       <div>
         <h1 className="text-3xl font-bold text-foreground">
           {isEditing ? 'Edit Project' : 'Add New Project'}
@@ -268,8 +348,47 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                       }
                       multiple={type.id !== 'thumbnail'}
                     />
-                    
                     <AnimatePresence mode="wait">
+                      {/* Show existing media files for edit mode */}
+                      {existingMedia[type.id] && existingMedia[type.id].length > 0 ? (
+                        <motion.div
+                          key="existing"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          className="flex flex-col items-center"
+                        >
+                          <div className="p-3 rounded-full bg-primary/10 text-primary mb-3">
+                            <FileIcon className="w-8 h-8" />
+                          </div>
+                          <ul className="text-sm font-medium text-foreground truncate max-w-full px-4">
+                            {existingMedia[type.id].map((file, idx) => (
+                              <li key={idx} className="flex items-center gap-2">
+                                <a href={file.url} target="_blank" rel="noopener noreferrer" className="underline">
+                                  {file.title || file.url.split('/').pop()}
+                                </a>
+                                <button
+                                  type="button"
+                                  className="ml-2 text-xs text-destructive hover:text-destructive/80"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setExistingMedia(prev => {
+                                      const arr = prev[type.id] || [];
+                                      return {
+                                        ...prev,
+                                        [type.id]: arr.filter((_, i) => i !== idx),
+                                      };
+                                    });
+                                  }}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </motion.div>
+                      ) : null}
+                      {/* Show newly selected files */}
                       {selectedFiles[type.id] && selectedFiles[type.id].length > 0 ? (
                         <motion.div
                           key="selected"
@@ -283,12 +402,24 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                           </div>
                           <ul className="text-sm font-medium text-foreground truncate max-w-full px-4">
                             {selectedFiles[type.id].map((file, idx) => (
-                              <li key={idx}>{file.name}</li>
+                              <li key={idx} className="flex items-center gap-2">
+                                {file.name}
+                                <button
+                                  type="button"
+                                  className="ml-2 text-xs text-destructive hover:text-destructive/80"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    removeSingleFile(type.id, idx);
+                                  }}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </li>
                             ))}
                           </ul>
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               removeFile(type.id);
                             }}
@@ -298,7 +429,9 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                             Remove all files
                           </button>
                         </motion.div>
-                      ) : (
+                      ) : null}
+                      {/* Show empty state if no files */}
+                      {(!selectedFiles[type.id] || selectedFiles[type.id].length === 0) && (!existingMedia[type.id] || existingMedia[type.id].length === 0) ? (
                         <motion.div
                           key="empty"
                           initial={{ opacity: 0 }}
@@ -317,7 +450,7 @@ export default function ProjectForm({ project, isEditing = false }: ProjectFormP
                              type.id === 'pdf' ? 'PDF Documents' : 'SVG, PNG, JPG'}
                           </p>
                         </motion.div>
-                      )}
+                      ) : null}
                     </AnimatePresence>
                   </div>
                 </div>
