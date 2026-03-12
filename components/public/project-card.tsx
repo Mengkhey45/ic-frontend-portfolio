@@ -28,7 +28,7 @@ export default function ProjectCard({ project, onClick, priority = false }: Proj
               <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
                 whileHover={{ scale: 1, opacity: 1 }}
-                className="bg-white/90 p-3 rounded-full"
+                className="bg-white/90 p-3"
               >
                 <Play className="w-6 h-6 text-primary fill-primary" />
               </motion.div>
@@ -63,7 +63,7 @@ export default function ProjectCard({ project, onClick, priority = false }: Proj
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   whileHover={{ scale: 1.05 }}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full hover:bg-primary/20 transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
                 >
                   <ExternalLink className="w-3 h-3" />
                   View

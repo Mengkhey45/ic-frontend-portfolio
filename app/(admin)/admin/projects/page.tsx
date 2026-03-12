@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, EyeOff, Edit, Trash2, Link2, Copy, Check, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, EyeOff, Edit, Trash2, Link2, Copy, Check, Loader2, Play, FileIcon, ExternalLink } from 'lucide-react';
 import { SmartSearch } from '@/components/admin/smart-search';
 import { Project, Category } from '@/lib/types';
 import { apiClient } from '@/lib/api-client';
@@ -46,6 +46,7 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [previewProject, setPreviewProject] = useState<Project | null>(null);
+  const [fullImageIndex, setFullImageIndex] = useState<number | null>(null);
   const [checkedProjects, setCheckedProjects] = useState<Set<string>>(new Set());
   const [linkExpiry, setLinkExpiry] = useState('7');
   const [linkNote, setLinkNote] = useState('');
@@ -343,7 +344,7 @@ export default function ProjectsPage() {
                               {project.isHidden ? (
                                 <EyeOff className="w-4 h-4" />
                               ) : (
-                                <Eye className="w-4 h-4" />
+                                <X className="w-4 h-4" />
                               )}
                             </Button>
                             <Button asChild variant="ghost" size="sm">
@@ -502,7 +503,7 @@ export default function ProjectsPage() {
               <div className="space-y-6 pt-2">
                 {/* Thumbnail */}
                 {previewProject.thumbnail && (
-                  <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                  <div className="relative aspect-video bg-muted overflow-hidden">
                     <Image
                       src={previewProject.thumbnail}
                       alt={previewProject.title}
@@ -536,15 +537,47 @@ export default function ProjectsPage() {
                       {previewProject.media
                         .filter((m) => m.type === 'image')
                         .map((media, idx) => (
-                          <div key={idx} className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                          <div key={idx} className="relative aspect-video bg-muted overflow-hidden cursor-pointer" onClick={() => setFullImageIndex(idx)}>
                             <Image
                               src={media.url}
                               alt={media.title || `Image ${idx + 1}`}
                               fill
                               className="object-cover"
                             />
+                            <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1">Click to view full</span>
                           </div>
                         ))}
+                          {/* Full Image Modal for Admin Preview */}
+                          <Dialog open={fullImageIndex !== null} onOpenChange={(open) => !open && setFullImageIndex(null)}>
+                            <DialogContent className="max-w-5xl max-h-[95vh] flex items-center justify-center bg-black/90">
+                              <DialogTitle className="sr-only">Full Image Preview</DialogTitle>
+                              {previewProject && fullImageIndex !== null && (
+                                <div className="relative w-full h-[70vh] flex items-center justify-center">
+                                  <Image
+                                    src={previewProject.media.filter((m) => m.type === 'image')[fullImageIndex].url}
+                                    alt={previewProject.media.filter((m) => m.type === 'image')[fullImageIndex].title || `Image ${fullImageIndex + 1}`}
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                  />
+                                  <Button variant="ghost" size="icon" onClick={() => setFullImageIndex(null)} className="absolute top-4 right-4 z-10 bg-black/60 text-white">
+                                    <X className="w-6 h-6" />
+                                  </Button>
+                                  {/* Navigation */}
+                                  {fullImageIndex > 0 && (
+                                    <Button variant="ghost" size="icon" onClick={() => setFullImageIndex(fullImageIndex - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 text-white">
+                                      <ChevronLeft className="w-6 h-6" />
+                                    </Button>
+                                  )}
+                                  {previewProject.media.filter((m) => m.type === 'image').length > fullImageIndex + 1 && (
+                                    <Button variant="ghost" size="icon" onClick={() => setFullImageIndex(fullImageIndex + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 text-white">
+                                      <ChevronRight className="w-6 h-6" />
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </DialogContent>
+                          </Dialog>
                     </div>
                   </div>
                 )}
@@ -564,7 +597,7 @@ export default function ProjectsPage() {
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
                           >
-                            <Eye className="w-4 h-4 text-primary" />
+                             <Play className="w-4 h-4 text-primary" />
                             <span className="text-sm font-medium">{video.title || `Video ${idx + 1}`}</span>
                           </a>
                         ))}
@@ -587,7 +620,7 @@ export default function ProjectsPage() {
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
                           >
-                            <Eye className="w-4 h-4 text-primary" />
+                             <FileIcon className="w-4 h-4 text-primary" />
                             <span className="text-sm font-medium">{pdf.title || `Document ${idx + 1}`}</span>
                           </a>
                         ))}
@@ -608,7 +641,7 @@ export default function ProjectsPage() {
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors text-sm text-primary truncate"
                         >
-                          <Eye className="w-4 h-4 flex-shrink-0" />
+                          <ExternalLink className="w-4 h-4 flex-shrink-0" />
                           {link}
                         </a>
                       ))}
